@@ -80,63 +80,67 @@ export function LoginPage() {
             <span className="text-xs bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded">Coming Soon</span>
           </button>
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200" />
-            </div>
-            <div className="relative flex justify-center text-xs">
-              <span className="bg-white px-2 text-slate-400">or dev login</span>
-            </div>
-          </div>
+          {error && <p className="text-xs text-red-600 mt-2">{error}</p>}
 
-          <form onSubmit={handleDevAuth} className="space-y-3">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email"
-              required
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              required
-              minLength={8}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+          {import.meta.env.DEV && (
+            <>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-200" />
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="bg-white px-2 text-slate-400">or dev login</span>
+                </div>
+              </div>
 
-            {error && <p className="text-xs text-red-600">{error}</p>}
+              <form onSubmit={handleDevAuth} className="space-y-3">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Email"
+                  required
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password"
+                  required
+                  minLength={8}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
 
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
-            >
-              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              {mode === 'register' ? 'Create Account' : 'Sign In'}
-            </button>
-          </form>
-
-          <p className="text-xs text-center text-slate-400">
-            {mode === 'login' ? (
-              <>
-                No account?{' '}
-                <button onClick={() => setMode('register')} className="text-blue-600 hover:underline cursor-pointer">
-                  Register
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                  {mode === 'register' ? 'Create Account' : 'Sign In'}
                 </button>
-              </>
-            ) : (
-              <>
-                Have an account?{' '}
-                <button onClick={() => setMode('login')} className="text-blue-600 hover:underline cursor-pointer">
-                  Sign in
-                </button>
-              </>
-            )}
-          </p>
+              </form>
+
+              <p className="text-xs text-center text-slate-400">
+                {mode === 'login' ? (
+                  <>
+                    No account?{' '}
+                    <button onClick={() => setMode('register')} className="text-blue-600 hover:underline cursor-pointer">
+                      Register
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    Have an account?{' '}
+                    <button onClick={() => setMode('login')} className="text-blue-600 hover:underline cursor-pointer">
+                      Sign in
+                    </button>
+                  </>
+                )}
+              </p>
+            </>
+          )}
         </div>
       </div>
     </div>
