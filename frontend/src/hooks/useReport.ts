@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { createReport, getAuditData, getReport, listReports } from '@/api/endpoints'
+import { createReport, deleteReport as deleteReportApi, rerunReport as rerunReportApi, getAuditData, getReport, listReports } from '@/api/endpoints'
 import type { AuditData, Report, ReportInput } from '@/types'
 
 export function useReport() {
@@ -61,6 +61,33 @@ export function useReport() {
     }
   }, [])
 
+  const removeReport = useCallback(async (id: string) => {
+    try {
+      await deleteReportApi(id)
+      setReports((prev) => prev.filter((r) => r.id !== id))
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to delete report'
+      setError(message)
+      throw err
+    }
+  }, [])
+
+  const rerunReport = useCallback(async (id: string) => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const report = await rerunReportApi(id)
+      setCurrentReport(report)
+      return report
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to rerun report'
+      setError(message)
+      throw err
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
   return {
     reports,
     currentReport,
@@ -71,6 +98,8 @@ export function useReport() {
     fetchReports,
     fetchReport,
     fetchAuditData,
+    removeReport,
+    rerunReport,
     setError,
   }
 }

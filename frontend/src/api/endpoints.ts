@@ -47,3 +47,12 @@ export async function getAuditData(id: string): Promise<AuditData> {
   const res = await client.get<AuditData>(`/reports/${id}/raw/`)
   return res.data
 }
+
+export async function deleteReport(id: string): Promise<void> {
+  await client.delete(`/reports/${id}/`)
+}
+
+export async function rerunReport(id: string): Promise<Report> {
+  const res = await client.post<Report>(`/reports/${id}/rerun/`)
+  return res.data
+}

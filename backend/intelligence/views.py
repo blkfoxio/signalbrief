@@ -39,9 +39,9 @@ def report_list_create(request):
     return _create_report(request)
 
 
-@api_view(["GET"])
+@api_view(["GET", "DELETE"])
 def report_detail(request, report_id):
-    """Get a single report with full narrative and signals."""
+    """Get or delete a single report."""
     try:
         analysis = (
             Analysis.objects.select_related("company", "company__enrichment")
@@ -50,6 +50,10 @@ def report_detail(request, report_id):
         )
     except Analysis.DoesNotExist:
         return Response({"error": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == "DELETE":
+        analysis.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     return Response(ReportOutputSerializer(analysis).data)
 
@@ -71,6 +75,21 @@ def report_audit(request, report_id):
     return Response(AuditDataSerializer(dehashed).data)
 
 
+@api_view(["POST"])
+@throttle_classes([ReportGenerationThrottle])
+def report_rerun(request, report_id):
+    """Rerun analysis for the same company — creates a new report."""
+    try:
+        original = Analysis.objects.select_related("company").get(
+            id=report_id, created_by=request.user
+        )
+    except Analysis.DoesNotExist:
+        return Response({"error": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    company = original.company
+    return _run_pipeline(request, company)
+
+
 def _list_reports(request):
     """List user's past analyses."""
     analyses = (
@@ -85,20 +104,11 @@ def _list_reports(request):
 
 @throttle_classes([ReportGenerationThrottle])
 def _create_report(request):
-    """
-    Main orchestration pipeline:
-    1. Validate and resolve inputs
-    2. Upsert company
-    3. Parallel: DeHashed query + LinkedIn enrichment
-    4. Extract signals
-    5. Generate narrative
-    6. Return complete report
-    """
+    """Validate inputs, resolve domain, upsert company, then run pipeline."""
     serializer = ReportInputSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     data = serializer.validated_data
 
-    # Step 1: Resolve inputs
     resolved = resolve_inputs(
         domain=data.get("domain", ""),
         company_name=data.get("company_name", ""),
@@ -112,7 +122,6 @@ def _create_report(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Step 2: Upsert company
     company, _ = Company.objects.update_or_create(
         domain=resolved["domain"],
         defaults={
@@ -123,7 +132,19 @@ def _create_report(request):
         },
     )
 
-    # Create analysis record
+    return _run_pipeline(request, company)
+
+
+def _run_pipeline(request, company):
+    """
+    Core analysis pipeline — shared by create and rerun.
+    1. Create Analysis record
+    2. Parallel: DeHashed query + company enrichment
+    3. Store raw results
+    4. Extract signals
+    5. Generate narrative
+    6. Return complete report
+    """
     analysis = Analysis.objects.create(
         company=company,
         status=Analysis.Status.PROCESSING,
@@ -131,12 +152,12 @@ def _create_report(request):
     )
 
     try:
-        # Step 3: Run DeHashed query + enrichment in parallel
+        # Parallel: DeHashed + enrichment
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
             dehashed_response, enrichment_data = loop.run_until_complete(
-                _parallel_fetch(resolved["domain"], resolved["linkedin_url"], resolved["contact_email"])
+                _parallel_fetch(company.domain, company.linkedin_url, company.contact_email)
             )
         finally:
             loop.close()
@@ -148,7 +169,7 @@ def _create_report(request):
                 defaults=enrichment_data,
             )
 
-        # Step 4: Store raw DeHashed results
+        # Store raw DeHashed results
         entries = dehashed_response.get("entries", [])
         unique_emails = set()
         breach_sources = set()
@@ -163,33 +184,31 @@ def _create_report(request):
             if source:
                 breach_sources.add(source)
 
-        dehashed_result = DehashedResult.objects.create(
+        DehashedResult.objects.create(
             analysis=analysis,
             raw_response=dehashed_response,
-            query_domain=resolved["domain"],
-            query_email=resolved["contact_email"],
+            query_domain=company.domain,
+            query_email=company.contact_email,
             result_count=dehashed_response.get("total", len(entries)),
             unique_emails=len(unique_emails),
             breach_sources=len(breach_sources),
         )
 
-        # Step 5: Extract signals
+        # Extract signals
         signal_dicts = extract_signals(entries)
-        signal_objects = []
-        for sig in signal_dicts:
-            signal_objects.append(
-                SecuritySignal(
-                    analysis=analysis,
-                    signal_type=sig["signal_type"],
-                    value=sig["value"],
-                    severity=sig["severity"],
-                    title=sig["title"],
-                    description=sig["description"],
-                )
+        SecuritySignal.objects.bulk_create([
+            SecuritySignal(
+                analysis=analysis,
+                signal_type=sig["signal_type"],
+                value=sig["value"],
+                severity=sig["severity"],
+                title=sig["title"],
+                description=sig["description"],
             )
-        SecuritySignal.objects.bulk_create(signal_objects)
+            for sig in signal_dicts
+        ])
 
-        # Step 6: Generate narrative
+        # Generate narrative
         company_context = {
             "company_name": company.name,
             "domain": company.domain,
@@ -223,11 +242,8 @@ def _create_report(request):
             prompt_hash=narrative_data.get("prompt_hash", ""),
         )
 
-        # Mark completed
         analysis.status = Analysis.Status.COMPLETED
         analysis.save(update_fields=["status", "updated_at"])
-
-        # Attach narrative for serializer
         analysis._narrative = narrative
 
         return Response(ReportOutputSerializer(analysis).data, status=status.HTTP_201_CREATED)

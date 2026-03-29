@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, FileText, AlertTriangle } from 'lucide-react'
+import { Plus, FileText, AlertTriangle, Trash2 } from 'lucide-react'
 import { useReport } from '@/hooks/useReport'
 import { cn } from '@/lib/utils'
 
@@ -12,11 +12,22 @@ const SEVERITY_DOT: Record<string, string> = {
 }
 
 export function DashboardPage() {
-  const { reports, isLoading, fetchReports } = useReport()
+  const { reports, isLoading, fetchReports, removeReport } = useReport()
 
   useEffect(() => {
     fetchReports()
   }, [fetchReports])
+
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!window.confirm('Delete this report?')) return
+    try {
+      await removeReport(id)
+    } catch {
+      // error handled by hook
+    }
+  }
 
   return (
     <div>
@@ -82,6 +93,13 @@ export function DashboardPage() {
                   <span className="text-xs text-slate-400">
                     {new Date(report.created_at).toLocaleDateString()}
                   </span>
+                  <button
+                    onClick={(e) => handleDelete(e, report.id)}
+                    className="text-slate-300 hover:text-red-500 transition-colors cursor-pointer p-1"
+                    title="Delete report"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </Link>
             )
