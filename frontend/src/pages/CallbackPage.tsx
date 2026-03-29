@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
-import { exchangeOAuthCode } from '@/api/endpoints'
+import { exchangeGoogleCode, exchangeMicrosoftCode } from '@/api/endpoints'
 import { Loader2, Shield } from 'lucide-react'
 
 export function CallbackPage() {
@@ -20,8 +20,12 @@ export function CallbackPage() {
     }
 
     const handleCallback = async () => {
+      const provider = localStorage.getItem('oauth_provider') || 'google'
+      localStorage.removeItem('oauth_provider')
+
       try {
-        const res = await exchangeOAuthCode(code, state)
+        const exchangeFn = provider === 'microsoft' ? exchangeMicrosoftCode : exchangeGoogleCode
+        const res = await exchangeFn(code, state)
         login(res.access_token, res.refresh_token, res.user)
         navigate('/')
       } catch {

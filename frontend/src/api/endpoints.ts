@@ -2,13 +2,23 @@ import type { AuthResponse, AuditData, Report, ReportInput } from '@/types'
 import client from './client'
 
 // Auth
-export async function getLoginUrl(): Promise<string> {
-  const res = await client.get<{ auth_url: string }>('/auth/login/')
+export async function getGoogleLoginUrl(): Promise<string> {
+  const res = await client.get<{ auth_url: string }>('/auth/google/login/')
   return res.data.auth_url
 }
 
-export async function exchangeOAuthCode(code: string, state: string): Promise<AuthResponse> {
-  const res = await client.post<AuthResponse>('/auth/callback/', { code, state })
+export async function exchangeGoogleCode(code: string, state: string): Promise<AuthResponse> {
+  const res = await client.post<AuthResponse>('/auth/google/callback/', { code, state })
+  return res.data
+}
+
+export async function getMicrosoftLoginUrl(): Promise<string> {
+  const res = await client.get<{ auth_url: string }>('/auth/microsoft/login/')
+  return res.data.auth_url
+}
+
+export async function exchangeMicrosoftCode(code: string, state: string): Promise<AuthResponse> {
+  const res = await client.post<AuthResponse>('/auth/microsoft/callback/', { code, state })
   return res.data
 }
 

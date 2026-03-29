@@ -6,8 +6,13 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from . import views
 
 urlpatterns = [
-    path("login/", views.login_view, name="auth-login"),
-    path("callback/", views.callback_view, name="auth-callback"),
+    # Google OAuth
+    path("google/login/", views.google_login_view, name="auth-google-login"),
+    path("google/callback/", views.google_callback_view, name="auth-google-callback"),
+    # Microsoft OAuth
+    path("microsoft/login/", views.microsoft_login_view, name="auth-microsoft-login"),
+    path("microsoft/callback/", views.microsoft_callback_view, name="auth-microsoft-callback"),
+    # Common
     path("refresh/", TokenRefreshView.as_view(), name="auth-refresh"),
     path("me/", views.me_view, name="auth-me"),
     # Dev auth (disabled in production via settings)

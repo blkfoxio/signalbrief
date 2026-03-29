@@ -5,9 +5,10 @@ from django.db import models
 
 
 class User(AbstractUser):
-    """Extended user with Microsoft OAuth fields."""
+    """Extended user with OAuth provider fields."""
 
     microsoft_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    google_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
     avatar_url = models.URLField(blank=True, default="")
 
     class Meta:
