@@ -28,7 +28,7 @@ interface RiskOverviewProps {
 
 export function RiskOverview({ narrative, signals, osintSources }: RiskOverviewProps) {
   const overallSeverity = getOverallSeverity(signals)
-  const activeSources = osintSources.filter(s => s.result_count > 0)
+  const activeSources = osintSources.filter(s => !s.error_message)
 
   return (
     <div className="bg-white rounded-lg border border-slate-200 p-5">

@@ -31,7 +31,7 @@ export function AuditPanel({ reportId, auditData, osintSources, onLoadAuditData 
   const [page, setPage] = useState(0)
   const pageSize = 25
 
-  const activeSources = osintSources.filter(s => s.result_count > 0)
+  const activeSources = osintSources.filter(s => !s.error_message)
   const availableTabs: SourceTab[] = ['dehashed', ...activeSources.map(s => s.source)]
 
   const handleToggle = () => {
@@ -191,6 +191,8 @@ function DehashedTable({ auditData, page, pageSize, onPageChange }: {
 
 function OsintDataView({ source, data }: { source: string; data: OsintRawData }) {
   const raw = data.data as Record<string, unknown>
+
+  if (data.result_count === 0) return <CleanBillView source={source} queriedAt={data.queried_at} />
 
   if (source === 'shodan') return <ShodanView data={raw} queriedAt={data.queried_at} />
   if (source === 'builtwith') return <BuiltWithView data={raw} queriedAt={data.queried_at} />
@@ -380,6 +382,29 @@ function SecurityTrailsView({ data, queriedAt }: { data: Record<string, unknown>
         </div>
       )}
     </>
+  )
+}
+
+
+const CLEAN_MESSAGES: Record<string, string> = {
+  hibp: 'No known breaches found for this domain in the Have I Been Pwned database.',
+  shodan: 'No exposed services or hosts detected for this domain.',
+  censys: 'No hosts or certificates found for this domain.',
+  builtwith: 'No technology data available for this domain.',
+  leakcheck: 'No stealer log entries found for this domain.',
+  securitytrails: 'No subdomain or DNS data found for this domain.',
+}
+
+function CleanBillView({ source, queriedAt }: { source: string; queriedAt: string }) {
+  return (
+    <div className="py-4 text-center">
+      <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-medium mb-2">
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+        No findings
+      </div>
+      <p className="text-xs text-slate-500 mt-1">{CLEAN_MESSAGES[source] || 'No results found for this domain.'}</p>
+      <p className="text-xs text-slate-400 mt-1">Queried {new Date(queriedAt).toLocaleString()}</p>
+    </div>
   )
 }
 
