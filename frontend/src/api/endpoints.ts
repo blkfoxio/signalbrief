@@ -1,4 +1,4 @@
-import type { AuthResponse, AuditData, Report, ReportInput } from '@/types'
+import type { AuthResponse, AuditData, OsintRawData, Report, ReportInput } from '@/types'
 import client from './client'
 
 // Auth
@@ -55,6 +55,11 @@ export async function getReport(id: string): Promise<Report> {
 
 export async function getAuditData(id: string): Promise<AuditData> {
   const res = await client.get<AuditData>(`/reports/${id}/raw/`)
+  return res.data
+}
+
+export async function getOsintRawData(reportId: string, source: string): Promise<OsintRawData> {
+  const res = await client.get<OsintRawData>(`/reports/${reportId}/raw/${source}/`)
   return res.data
 }
 

@@ -6,7 +6,7 @@ from companies.serializers import CompanyEnrichmentSerializer
 from core.utils.masking import mask_dehashed_entry
 from core.utils.validators import validate_domain_format, validate_linkedin_url
 
-from .models import Analysis, DehashedResult, SecuritySignal
+from .models import Analysis, DehashedResult, OsintResult, SecuritySignal
 
 
 class ReportInputSerializer(serializers.Serializer):
@@ -31,7 +31,14 @@ class ReportInputSerializer(serializers.Serializer):
 class SecuritySignalSerializer(serializers.ModelSerializer):
     class Meta:
         model = SecuritySignal
-        fields = ["signal_type", "value", "severity", "title", "description"]
+        fields = ["source", "signal_type", "value", "severity", "title", "description"]
+        read_only_fields = fields
+
+
+class OsintResultSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OsintResult
+        fields = ["source", "result_count", "query_value", "queried_at", "error_message"]
         read_only_fields = fields
 
 
@@ -39,6 +46,8 @@ class NarrativeOutputSerializer(serializers.Serializer):
     """Inline serializer for narrative data within report response."""
 
     headline = serializers.CharField()
+    risk_summary = serializers.CharField(allow_blank=True, default="")
+    category_findings = serializers.DictField(default=dict)
     executive_narrative = serializers.CharField()
     talk_track = serializers.CharField()
     business_impact = serializers.CharField()
@@ -51,10 +60,11 @@ class ReportOutputSerializer(serializers.ModelSerializer):
     company = serializers.SerializerMethodField()
     signals = SecuritySignalSerializer(many=True, read_only=True)
     narrative = serializers.SerializerMethodField()
+    osint_sources = serializers.SerializerMethodField()
 
     class Meta:
         model = Analysis
-        fields = ["id", "status", "company", "signals", "narrative", "created_at"]
+        fields = ["id", "status", "company", "signals", "narrative", "osint_sources", "created_at"]
         read_only_fields = fields
 
     def get_company(self, obj):
@@ -81,12 +91,19 @@ class ReportOutputSerializer(serializers.ModelSerializer):
         if narrative:
             return {
                 "headline": narrative.headline,
+                "risk_summary": narrative.risk_summary,
+                "category_findings": narrative.category_findings,
                 "executive_narrative": narrative.executive_narrative,
                 "talk_track": narrative.talk_track,
                 "business_impact": narrative.business_impact,
                 "transition": narrative.transition,
             }
         return None
+
+    def get_osint_sources(self, obj):
+        """List OSINT sources that returned data for this analysis."""
+        results = obj.osint_results.all() if hasattr(obj, "osint_results") else []
+        return OsintResultSerializer(results, many=True).data
 
 
 class AuditDataSerializer(serializers.Serializer):

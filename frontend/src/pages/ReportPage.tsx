@@ -3,7 +3,8 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, RefreshCw, Trash2, Loader2 } from 'lucide-react'
 import { useReport } from '@/hooks/useReport'
 import { CompanySnapshot } from '@/components/CompanySnapshot'
-import { SignalCards } from '@/components/SignalCards'
+import { RiskOverview } from '@/components/RiskOverview'
+import { CategoryTabs } from '@/components/CategoryTabs'
 import { NarrativeView } from '@/components/NarrativeView'
 import { AuditPanel } from '@/components/AuditPanel'
 import { LoadingState } from '@/components/LoadingState'
@@ -98,8 +99,22 @@ export function ReportPage() {
 
       <CompanySnapshot company={currentReport.company} />
 
-      <SignalCards signals={currentReport.signals} />
+      {/* Risk Overview - headline + risk summary + severity badge + source badges */}
+      {currentReport.narrative && (
+        <RiskOverview
+          narrative={currentReport.narrative}
+          signals={currentReport.signals}
+          osintSources={currentReport.osint_sources || []}
+        />
+      )}
 
+      {/* Category Tabs - grouped signals by intel category */}
+      <CategoryTabs
+        signals={currentReport.signals}
+        categoryFindings={currentReport.narrative?.category_findings}
+      />
+
+      {/* Sales Enablement - talk track, business impact, transition */}
       {currentReport.narrative && (
         <NarrativeView narrative={currentReport.narrative} />
       )}
@@ -115,6 +130,7 @@ export function ReportPage() {
       <AuditPanel
         reportId={currentReport.id}
         auditData={auditData}
+        osintSources={currentReport.osint_sources || []}
         onLoadAuditData={fetchAuditData}
       />
     </div>

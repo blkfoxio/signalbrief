@@ -137,3 +137,11 @@ GOOGLE_CLIENT_ID = config("GOOGLE_CLIENT_ID", default="")
 GOOGLE_CLIENT_SECRET = config("GOOGLE_CLIENT_SECRET", default="")
 GOOGLE_REDIRECT_URI = config("GOOGLE_REDIRECT_URI", default="http://localhost:5173/auth/callback")
 PROXYCURL_API = config("PROXYCURL_API", default="")
+
+# OSINT data sources
+LEAKCHECK_API = config("LEAKCHECK_API", default="")
+SECURITYTRAILS_API = config("SECURITYTRAILS_API", default="")
+SHODAN_API = config("SHODAN_API", default="")
+CENSYS_API_TOKEN = config("CENSYS_API_TOKEN", default="")
+BUILTWITH_API = config("BUILTWITH_API", default="")
+HIBP_API = config("HIBP_API", default="")

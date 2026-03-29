@@ -14,6 +14,8 @@ class Narrative(TimestampedModel):
         related_name="narrative",
     )
     headline = models.CharField(max_length=500)
+    risk_summary = models.TextField(blank=True, default="")
+    category_findings = models.JSONField(default=dict, blank=True)
     executive_narrative = models.TextField()
     talk_track = models.TextField()
     business_impact = models.TextField()

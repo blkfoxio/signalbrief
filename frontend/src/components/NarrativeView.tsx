@@ -42,16 +42,14 @@ function NarrativeSection({ label, content }: NarrativeSectionProps) {
 
 export function NarrativeView({ narrative }: { narrative: NarrativeOutput }) {
   return (
-    <div className="bg-white rounded-lg border border-slate-200 p-5 space-y-0">
-      {narrative.headline && (
-        <div className="pb-4 border-b border-slate-100">
-          <p className="text-base font-semibold text-slate-900">{narrative.headline}</p>
-        </div>
-      )}
-      <NarrativeSection label="Executive Narrative" content={narrative.executive_narrative} />
-      <NarrativeSection label="Talk Track" content={narrative.talk_track} />
-      <NarrativeSection label="Business Impact" content={narrative.business_impact} />
-      <NarrativeSection label="Transition" content={narrative.transition} />
+    <div className="space-y-3">
+      <h2 className="text-lg font-semibold text-slate-900">Sales Enablement</h2>
+      <div className="bg-white rounded-lg border border-slate-200 p-5 space-y-0">
+        <NarrativeSection label="Executive Summary" content={narrative.executive_narrative} />
+        <NarrativeSection label="Talk Track" content={narrative.talk_track} />
+        <NarrativeSection label="Business Impact" content={narrative.business_impact} />
+        <NarrativeSection label="Transition" content={narrative.transition} />
+      </div>
     </div>
   )
 }

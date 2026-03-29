@@ -56,6 +56,33 @@ class DehashedResult(TimestampedModel):
         return f"DeHashed: {self.query_domain} ({self.result_count} results)"
 
 
+class OsintResult(TimestampedModel):
+    """Generic result storage for any OSINT data source."""
+
+    class Source(models.TextChoices):
+        LEAKCHECK = "leakcheck"
+        SECURITYTRAILS = "securitytrails"
+        SHODAN = "shodan"
+        CENSYS = "censys"
+        BUILTWITH = "builtwith"
+        HIBP = "hibp"
+
+    analysis = models.ForeignKey(Analysis, on_delete=models.CASCADE, related_name="osint_results")
+    source = models.CharField(max_length=50, choices=Source.choices)
+    raw_response = models.JSONField(default=dict)
+    result_count = models.IntegerField(default=0)
+    query_value = models.CharField(max_length=255)
+    queried_at = models.DateTimeField(auto_now_add=True)
+    error_message = models.TextField(blank=True, default="")
+
+    class Meta(TimestampedModel.Meta):
+        db_table = "osint_results"
+        unique_together = ("analysis", "source")
+
+    def __str__(self):
+        return f"{self.source}: {self.query_value} ({self.result_count} results)"
+
+
 class SecuritySignal(TimestampedModel):
     """Deterministic security signal extracted from DeHashed data."""
 
@@ -66,6 +93,7 @@ class SecuritySignal(TimestampedModel):
         CRITICAL = "critical"
 
     analysis = models.ForeignKey(Analysis, on_delete=models.CASCADE, related_name="signals")
+    source = models.CharField(max_length=50, blank=True, default="dehashed")
     signal_type = models.CharField(max_length=100)
     value = models.JSONField(default=dict)
     severity = models.CharField(max_length=20, choices=Severity.choices, default=Severity.LOW)

@@ -16,10 +16,17 @@ from companies.services.input_resolver import resolve_inputs
 from narratives.models import Narrative
 from narratives.services.openai_generator import generate_narrative
 
-from .models import Analysis, DehashedResult, SecuritySignal
+from .models import Analysis, DehashedResult, OsintResult, SecuritySignal
 from .serializers import AuditDataSerializer, ReportInputSerializer, ReportOutputSerializer
 from .services.dehashed_client import search_by_domain, search_by_email
-from .services.signal_extractor import extract_signals
+from .services.signal_extractor import extract_all_signals, extract_signals
+
+from .services.hibp_client import search_by_domain as hibp_search
+from .services.shodan_client import search_by_domain as shodan_search
+from .services.leakcheck_client import search_by_domain as leakcheck_search
+from .services.securitytrails_client import search_by_domain as securitytrails_search
+from .services.censys_client import search_by_domain as censys_search
+from .services.builtwith_client import search_by_domain as builtwith_search
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +52,7 @@ def report_detail(request, report_id):
     try:
         analysis = (
             Analysis.objects.select_related("company", "company__enrichment")
-            .prefetch_related("signals", "narrative")
+            .prefetch_related("signals", "narrative", "osint_results")
             .get(id=report_id, created_by=request.user)
         )
     except Analysis.DoesNotExist:
@@ -75,6 +82,28 @@ def report_audit(request, report_id):
     return Response(AuditDataSerializer(dehashed).data)
 
 
+@api_view(["GET"])
+def report_osint_raw(request, report_id, source):
+    """Get raw OSINT data for a specific source."""
+    try:
+        analysis = Analysis.objects.get(id=report_id, created_by=request.user)
+    except Analysis.DoesNotExist:
+        return Response({"error": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        result = OsintResult.objects.get(analysis=analysis, source=source)
+    except OsintResult.DoesNotExist:
+        return Response({"error": f"No {source} data available"}, status=status.HTTP_404_NOT_FOUND)
+
+    return Response({
+        "source": result.source,
+        "result_count": result.result_count,
+        "query_value": result.query_value,
+        "queried_at": result.queried_at,
+        "data": result.raw_response,
+    })
+
+
 @api_view(["POST"])
 @throttle_classes([ReportGenerationThrottle])
 def report_rerun(request, report_id):
@@ -95,7 +124,7 @@ def _list_reports(request):
     analyses = (
         Analysis.objects.filter(created_by=request.user)
         .select_related("company", "company__enrichment")
-        .prefetch_related("signals")
+        .prefetch_related("signals", "osint_results")
         .order_by("-created_at")[:50]
     )
     serializer = ReportOutputSerializer(analyses, many=True)
@@ -152,15 +181,18 @@ def _run_pipeline(request, company):
     )
 
     try:
-        # Parallel: DeHashed + enrichment
+        # Parallel: All data sources
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            dehashed_response, enrichment_data = loop.run_until_complete(
+            fetched = loop.run_until_complete(
                 _parallel_fetch(company.domain, company.linkedin_url, company.contact_email)
             )
         finally:
             loop.close()
+
+        dehashed_response = fetched.get("dehashed", {"entries": [], "total": 0})
+        enrichment_data = fetched.get("enrichment", {})
 
         # Store enrichment
         if enrichment_data.get("confidence_score", 0) > 0:
@@ -194,11 +226,37 @@ def _run_pipeline(request, company):
             breach_sources=len(breach_sources),
         )
 
-        # Extract signals
-        signal_dicts = extract_signals(entries)
+        # Store OSINT results from other sources
+        osint_sources = ["hibp", "shodan", "leakcheck", "securitytrails", "censys", "builtwith"]
+        osint_results = {}
+        for source_name in osint_sources:
+            source_data = fetched.get(source_name)
+            if source_data and not source_data.get("error"):
+                osint_results[source_name] = source_data
+                # Determine result count based on source
+                result_count = (
+                    source_data.get("total", 0)
+                    or len(source_data.get("breaches", []))
+                    or len(source_data.get("hosts", []))
+                    or len(source_data.get("results", []))
+                    or len(source_data.get("technologies", []))
+                    or source_data.get("total_subdomains", 0)
+                )
+                OsintResult.objects.create(
+                    analysis=analysis,
+                    source=source_name,
+                    raw_response=source_data,
+                    result_count=result_count,
+                    query_value=company.domain,
+                    error_message=source_data.get("error", ""),
+                )
+
+        # Extract signals from ALL sources
+        signal_dicts = extract_all_signals(entries, osint_results)
         SecuritySignal.objects.bulk_create([
             SecuritySignal(
                 analysis=analysis,
+                source=sig.get("source", "dehashed"),
                 signal_type=sig["signal_type"],
                 value=sig["value"],
                 severity=sig["severity"],
@@ -234,6 +292,8 @@ def _run_pipeline(request, company):
         narrative = Narrative.objects.create(
             analysis=analysis,
             headline=narrative_data.get("headline", ""),
+            risk_summary=narrative_data.get("risk_summary", ""),
+            category_findings=narrative_data.get("category_findings", {}),
             executive_narrative=narrative_data.get("executive_narrative", ""),
             talk_track=narrative_data.get("talk_track", ""),
             business_impact=narrative_data.get("business_impact", ""),
@@ -259,19 +319,38 @@ def _run_pipeline(request, company):
         )
 
 
-async def _parallel_fetch(domain: str, linkedin_url: str, contact_email: str) -> tuple[dict, dict]:
-    """Run DeHashed query and LinkedIn enrichment in parallel."""
-    dehashed_task = search_by_domain(domain)
-    enrichment_task = enrich_company(domain, linkedin_url)
+async def _parallel_fetch(domain: str, linkedin_url: str, contact_email: str) -> dict:
+    """Run all data source queries in parallel."""
+    from django.conf import settings
 
-    results = await asyncio.gather(dehashed_task, enrichment_task, return_exceptions=True)
+    tasks = {
+        "dehashed": search_by_domain(domain),
+        "enrichment": enrich_company(domain, linkedin_url),
+    }
 
-    dehashed_response = results[0] if not isinstance(results[0], Exception) else {"entries": [], "total": 0}
-    enrichment_data = results[1] if not isinstance(results[1], Exception) else {}
+    # Only include OSINT sources that have API keys configured
+    if settings.HIBP_API:
+        tasks["hibp"] = hibp_search(domain)
+    if settings.SHODAN_API:
+        tasks["shodan"] = shodan_search(domain)
+    if settings.LEAKCHECK_API:
+        tasks["leakcheck"] = leakcheck_search(domain)
+    if settings.SECURITYTRAILS_API:
+        tasks["securitytrails"] = securitytrails_search(domain)
+    if settings.CENSYS_API_TOKEN:
+        tasks["censys"] = censys_search(domain)
+    if settings.BUILTWITH_API:
+        tasks["builtwith"] = builtwith_search(domain)
 
-    if isinstance(results[0], Exception):
-        logger.error(f"DeHashed query failed: {results[0]}")
-    if isinstance(results[1], Exception):
-        logger.warning(f"Enrichment failed: {results[1]}")
+    keys = list(tasks.keys())
+    results = await asyncio.gather(*tasks.values(), return_exceptions=True)
 
-    return dehashed_response, enrichment_data
+    fetched = {}
+    for key, result in zip(keys, results):
+        if isinstance(result, Exception):
+            logger.error(f"{key} query failed: {result}")
+            fetched[key] = {} if key != "dehashed" else {"entries": [], "total": 0}
+        else:
+            fetched[key] = result
+
+    return fetched
