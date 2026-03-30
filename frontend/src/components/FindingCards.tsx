@@ -38,23 +38,36 @@ interface FindingCardsProps {
 
 const EMPTY_FINDING = { summary: '', talk_track: '' }
 
+const EMPTY_CRED: CorrelatedFindings['credential_exposure'] = {
+  severity: 'low', total_emails_exposed: 0, confirmed_passwords: 0,
+  stealer_log_hits: 0, stealer_log_total: 0, market_credentials: 0,
+  breach_count: 0, breach_names: [], repeated_exposures: 0,
+  days_since_breach: null, total_exposed_credentials: 0, evidence: [], sources: [],
+}
+
+const EMPTY_SURFACE: CorrelatedFindings['attack_surface'] = {
+  severity: 'low', exposed_ports: [], high_risk_services: {}, cves: [],
+  subdomain_count: 0, subdomain_sample: [], dns_issues: [], tech_count: 0,
+  security_tools: [], missing_defenses: [], evidence: [], sources: [],
+}
+
 export function FindingCards({ narrative }: FindingCardsProps) {
   const findings = narrative.findings || {}
-  const correlated = narrative.correlated_data || {} as CorrelatedFindings
+  const correlated = narrative.correlated_data
 
   return (
     <div className="space-y-4">
       <CredentialCard
         finding={findings.credential_exposure || EMPTY_FINDING}
-        data={correlated.credential_exposure}
+        data={correlated?.credential_exposure || EMPTY_CRED}
       />
       <AttackSurfaceCard
         finding={findings.attack_surface || EMPTY_FINDING}
-        data={correlated.attack_surface}
+        data={correlated?.attack_surface || EMPTY_SURFACE}
       />
       <RemediationCard
         finding={findings.remediation || EMPTY_FINDING}
-        items={correlated.remediation_priorities || []}
+        items={correlated?.remediation_priorities || []}
       />
     </div>
   )
@@ -63,11 +76,11 @@ export function FindingCards({ narrative }: FindingCardsProps) {
 
 function CredentialCard({ finding, data }: {
   finding: { summary: string; talk_track: string }
-  data?: CorrelatedFindings['credential_exposure']
+  data: CorrelatedFindings['credential_exposure']
 }) {
   const [expanded, setExpanded] = useState(false)
-  const severity = data?.severity || 'low'
-  const hasFindings = (data?.total_exposed_credentials || 0) > 0 || (data?.total_emails_exposed || 0) > 0
+  const severity = data.severity || 'low'
+  const hasFindings = data.total_exposed_credentials > 0 || data.total_emails_exposed > 0
   if (!finding.summary && !hasFindings) return null
 
   return (
@@ -147,11 +160,11 @@ function CredentialCard({ finding, data }: {
 
 function AttackSurfaceCard({ finding, data }: {
   finding: { summary: string; talk_track: string }
-  data?: CorrelatedFindings['attack_surface']
+  data: CorrelatedFindings['attack_surface']
 }) {
   const [expanded, setExpanded] = useState(false)
-  const severity = data?.severity || 'low'
-  const hasFindings = (data?.exposed_ports?.length || 0) > 0 || (data?.subdomain_count || 0) > 0 || (data?.missing_defenses?.length || 0) > 0
+  const severity = data.severity || 'low'
+  const hasFindings = data.exposed_ports.length > 0 || data.subdomain_count > 0 || data.missing_defenses.length > 0
   if (!finding.summary && !hasFindings) return null
 
   return (
