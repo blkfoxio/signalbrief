@@ -46,12 +46,10 @@ class NarrativeOutputSerializer(serializers.Serializer):
     """Inline serializer for narrative data within report response."""
 
     headline = serializers.CharField()
-    risk_summary = serializers.CharField(allow_blank=True, default="")
-    category_findings = serializers.DictField(default=dict)
-    executive_narrative = serializers.CharField()
-    talk_track = serializers.CharField()
-    business_impact = serializers.CharField()
-    transition = serializers.CharField()
+    executive_brief = serializers.CharField(allow_blank=True, default="")
+    findings = serializers.DictField(default=dict)
+    correlated_data = serializers.DictField(default=dict)
+    transition = serializers.CharField(allow_blank=True, default="")
 
 
 class ReportOutputSerializer(serializers.ModelSerializer):
@@ -91,11 +89,9 @@ class ReportOutputSerializer(serializers.ModelSerializer):
         if narrative:
             return {
                 "headline": narrative.headline,
-                "risk_summary": narrative.risk_summary,
-                "category_findings": narrative.category_findings,
-                "executive_narrative": narrative.executive_narrative,
-                "talk_track": narrative.talk_track,
-                "business_impact": narrative.business_impact,
+                "executive_brief": narrative.executive_brief,
+                "findings": narrative.findings,
+                "correlated_data": narrative.correlated_data,
                 "transition": narrative.transition,
             }
         return None

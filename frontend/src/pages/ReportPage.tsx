@@ -4,8 +4,7 @@ import { ArrowLeft, RefreshCw, Trash2, Loader2 } from 'lucide-react'
 import { useReport } from '@/hooks/useReport'
 import { CompanySnapshot } from '@/components/CompanySnapshot'
 import { RiskOverview } from '@/components/RiskOverview'
-import { CategoryTabs } from '@/components/CategoryTabs'
-import { NarrativeView } from '@/components/NarrativeView'
+import { FindingCards } from '@/components/FindingCards'
 import { AuditPanel } from '@/components/AuditPanel'
 import { LoadingState } from '@/components/LoadingState'
 
@@ -99,24 +98,24 @@ export function ReportPage() {
 
       <CompanySnapshot company={currentReport.company} />
 
-      {/* Risk Overview - headline + risk summary + severity badge + source badges */}
+      {/* Headline + Executive Brief */}
       {currentReport.narrative && (
         <RiskOverview
           narrative={currentReport.narrative}
-          signals={currentReport.signals}
           osintSources={currentReport.osint_sources || []}
         />
       )}
 
-      {/* Category Tabs - grouped signals by intel category */}
-      <CategoryTabs
-        signals={currentReport.signals}
-        categoryFindings={currentReport.narrative?.category_findings}
-      />
-
-      {/* Sales Enablement - talk track, business impact, transition */}
+      {/* 3 Correlated Finding Cards */}
       {currentReport.narrative && (
-        <NarrativeView narrative={currentReport.narrative} />
+        <FindingCards narrative={currentReport.narrative} />
+      )}
+
+      {/* Transition to solution */}
+      {currentReport.narrative?.transition && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p className="text-sm text-blue-800 italic">{currentReport.narrative.transition}</p>
+        </div>
       )}
 
       {currentReport.status === 'failed' && (

@@ -10,9 +10,9 @@ class NarrativeSerializer(serializers.ModelSerializer):
         model = Narrative
         fields = [
             "headline",
-            "executive_narrative",
-            "talk_track",
-            "business_impact",
+            "executive_brief",
+            "findings",
+            "correlated_data",
             "transition",
             "generated_at",
         ]

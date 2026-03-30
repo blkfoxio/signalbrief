@@ -19,6 +19,7 @@ from narratives.services.openai_generator import generate_narrative
 from .models import Analysis, DehashedResult, OsintResult, SecuritySignal
 from .serializers import AuditDataSerializer, ReportInputSerializer, ReportOutputSerializer
 from .services.dehashed_client import search_by_domain, search_by_email
+from .services.correlation_engine import correlate_findings
 from .services.signal_extractor import extract_all_signals, extract_signals
 
 from .services.hibp_client import search_by_domain as hibp_search
@@ -266,7 +267,10 @@ def _run_pipeline(request, company):
             for sig in signal_dicts
         ])
 
-        # Generate narrative
+        # Correlate findings across sources
+        correlated = correlate_findings(signal_dicts, osint_results)
+
+        # Generate narrative from correlated findings
         company_context = {
             "company_name": company.name,
             "domain": company.domain,
@@ -284,7 +288,7 @@ def _run_pipeline(request, company):
         asyncio.set_event_loop(loop)
         try:
             narrative_data = loop.run_until_complete(
-                generate_narrative(company_context, signal_dicts)
+                generate_narrative(company_context, correlated)
             )
         finally:
             loop.close()
@@ -292,11 +296,9 @@ def _run_pipeline(request, company):
         narrative = Narrative.objects.create(
             analysis=analysis,
             headline=narrative_data.get("headline", ""),
-            risk_summary=narrative_data.get("risk_summary", ""),
-            category_findings=narrative_data.get("category_findings", {}),
-            executive_narrative=narrative_data.get("executive_narrative", ""),
-            talk_track=narrative_data.get("talk_track", ""),
-            business_impact=narrative_data.get("business_impact", ""),
+            executive_brief=narrative_data.get("executive_brief", ""),
+            findings=narrative_data.get("findings", {}),
+            correlated_data=correlated,
             transition=narrative_data.get("transition", ""),
             model_used=narrative_data.get("model_used", ""),
             prompt_hash=narrative_data.get("prompt_hash", ""),
