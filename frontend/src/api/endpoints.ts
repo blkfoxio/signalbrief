@@ -3,12 +3,15 @@ import client from './client'
 
 // Auth
 export async function getGoogleLoginUrl(): Promise<string> {
-  const res = await client.get<{ auth_url: string }>('/auth/google/login/')
+  const res = await client.get<{ auth_url: string; code_verifier: string }>('/auth/google/login/')
+  sessionStorage.setItem('pkce_code_verifier', res.data.code_verifier)
   return res.data.auth_url
 }
 
 export async function exchangeGoogleCode(code: string, state: string): Promise<AuthResponse> {
-  const res = await client.post<AuthResponse>('/auth/google/callback/', { code, state })
+  const code_verifier = sessionStorage.getItem('pkce_code_verifier') || ''
+  sessionStorage.removeItem('pkce_code_verifier')
+  const res = await client.post<AuthResponse>('/auth/google/callback/', { code, state, code_verifier })
   return res.data
 }
 

@@ -1,7 +1,10 @@
 """Authentication views: Google OAuth, Microsoft OAuth, and dev email/password."""
 
+import hashlib
+import hmac
 import logging
 import secrets
+import time
 import uuid
 
 logger = logging.getLogger(__name__)
@@ -31,6 +34,38 @@ def _unique_username(base: str) -> str:
     if not User.objects.filter(username=base).exists():
         return base
     return f"{base}_{uuid.uuid4().hex[:6]}"
+
+
+# --- HMAC-signed OAuth state (no session dependency) ---
+
+STATE_MAX_AGE = 600  # 10 minutes
+
+
+def _make_signed_state() -> str:
+    """Create an HMAC-signed state token: nonce.timestamp.signature."""
+    nonce = secrets.token_urlsafe(32)
+    ts = str(int(time.time()))
+    payload = f"{nonce}.{ts}"
+    sig = hmac.new(settings.SECRET_KEY.encode(), payload.encode(), hashlib.sha256).hexdigest()[:32]
+    return f"{payload}.{sig}"
+
+
+def _verify_signed_state(state: str) -> bool:
+    """Verify an HMAC-signed state token is valid and not expired."""
+    try:
+        parts = state.split(".")
+        if len(parts) != 3:
+            return False
+        nonce, ts, sig = parts
+        payload = f"{nonce}.{ts}"
+        expected = hmac.new(settings.SECRET_KEY.encode(), payload.encode(), hashlib.sha256).hexdigest()[:32]
+        if not hmac.compare_digest(sig, expected):
+            return False
+        if int(time.time()) - int(ts) > STATE_MAX_AGE:
+            return False
+        return True
+    except (ValueError, TypeError):
+        return False
 
 
 REFRESH_COOKIE_NAME = "refresh_token"
@@ -87,12 +122,10 @@ def _auth_response(user, http_status=status.HTTP_200_OK):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def google_login_view(request):
-    """Return Google OAuth authorization URL with PKCE."""
-    state = secrets.token_urlsafe(32)
-    request.session["oauth_state"] = state
+    """Return Google OAuth authorization URL with PKCE and signed state."""
+    state = _make_signed_state()
     auth_url, code_verifier = google_service.get_auth_url(state)
-    request.session["pkce_code_verifier"] = code_verifier
-    return Response({"auth_url": auth_url})
+    return Response({"auth_url": auth_url, "code_verifier": code_verifier})
 
 
 @api_view(["POST"])
@@ -102,13 +135,13 @@ def google_callback_view(request):
     serializer = OAuthCallbackSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
-    # Validate OAuth state to prevent CSRF
-    expected_state = request.session.pop("oauth_state", None)
-    if not expected_state or serializer.validated_data["state"] != expected_state:
-        return Response({"error": "Invalid OAuth state"}, status=status.HTTP_400_BAD_REQUEST)
+    # Validate HMAC-signed OAuth state to prevent CSRF
+    state = serializer.validated_data["state"]
+    if not _verify_signed_state(state):
+        return Response({"error": "Invalid or expired OAuth state"}, status=status.HTTP_400_BAD_REQUEST)
 
     code = serializer.validated_data["code"]
-    code_verifier = request.session.pop("pkce_code_verifier", "")
+    code_verifier = serializer.validated_data.get("code_verifier", "")
 
     try:
         token_result = async_to_sync(google_service.exchange_code_for_tokens)(code, code_verifier)
@@ -158,9 +191,8 @@ def google_callback_view(request):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def microsoft_login_view(request):
-    """Return Microsoft OAuth authorization URL."""
-    state = secrets.token_urlsafe(32)
-    request.session["oauth_state"] = state
+    """Return Microsoft OAuth authorization URL with signed state."""
+    state = _make_signed_state()
     auth_url = msal_service.get_auth_url(state)
     return Response({"auth_url": auth_url})
 
@@ -172,10 +204,10 @@ def microsoft_callback_view(request):
     serializer = OAuthCallbackSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
-    # Validate OAuth state to prevent CSRF
-    expected_state = request.session.pop("oauth_state", None)
-    if not expected_state or serializer.validated_data["state"] != expected_state:
-        return Response({"error": "Invalid OAuth state"}, status=status.HTTP_400_BAD_REQUEST)
+    # Validate HMAC-signed OAuth state to prevent CSRF
+    state = serializer.validated_data["state"]
+    if not _verify_signed_state(state):
+        return Response({"error": "Invalid or expired OAuth state"}, status=status.HTTP_400_BAD_REQUEST)
 
     code = serializer.validated_data["code"]
 

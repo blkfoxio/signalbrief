@@ -16,6 +16,7 @@ class UserSerializer(serializers.ModelSerializer):
 class OAuthCallbackSerializer(serializers.Serializer):
     code = serializers.CharField(required=True)
     state = serializers.CharField(required=True)
+    code_verifier = serializers.CharField(required=False, default="")
 
 
 class DevRegisterSerializer(serializers.Serializer):
