@@ -30,7 +30,7 @@ export function NewReportPage() {
         </p>
       </div>
 
-      <div className="bg-white rounded-lg border border-slate-200 p-6">
+      <div className="bg-white rounded-lg border border-slate-200 p-4 sm:p-6">
         <InputForm onSubmit={handleSubmit} isLoading={isLoading} />
         {error && (
           <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">

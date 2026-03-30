@@ -28,7 +28,7 @@ export function RiskOverview({ narrative, osintSources }: RiskOverviewProps) {
   }
 
   return (
-    <div className="bg-white rounded-lg border border-slate-200 p-5">
+    <div className="bg-white rounded-lg border border-slate-200 p-4 sm:p-5">
       <div className="flex items-start gap-3 mb-3">
         <ShieldAlert className="w-6 h-6 text-slate-600 mt-0.5 shrink-0" />
         <div className="flex-1">
@@ -37,10 +37,10 @@ export function RiskOverview({ narrative, osintSources }: RiskOverviewProps) {
       </div>
 
       {narrative.executive_brief && (
-        <div className="bg-slate-50 rounded-lg p-4 mb-3">
+        <div className="bg-slate-50 rounded-lg p-3 sm:p-4 mb-3">
           <div className="flex items-start justify-between gap-2">
             <p className="text-sm text-slate-700 leading-relaxed">{narrative.executive_brief}</p>
-            <button onClick={handleCopyBrief} className="text-slate-400 hover:text-blue-600 cursor-pointer p-1 shrink-0" title="Copy executive brief">
+            <button onClick={handleCopyBrief} className="text-slate-400 hover:text-blue-600 cursor-pointer p-2 shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center" title="Copy executive brief">
               {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
             </button>
           </div>

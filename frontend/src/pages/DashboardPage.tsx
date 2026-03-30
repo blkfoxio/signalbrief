@@ -72,7 +72,7 @@ export function DashboardPage() {
               <Link
                 key={report.id}
                 to={`/reports/${report.id}`}
-                className="flex items-center justify-between p-4 bg-white rounded-lg border border-slate-200 hover:border-blue-300 hover:shadow-sm transition-all no-underline"
+                className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-4 bg-white rounded-lg border border-slate-200 hover:border-blue-300 hover:shadow-sm transition-all no-underline"
               >
                 <div className="flex items-center gap-3">
                   {topSignal && (
@@ -85,7 +85,7 @@ export function DashboardPage() {
                     <p className="text-xs text-slate-400">{report.company?.domain}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 pl-5 sm:pl-0">
                   <div className="flex items-center gap-1 text-xs text-slate-400">
                     <AlertTriangle className="w-3 h-3" />
                     {report.signals?.length || 0} signals
@@ -95,7 +95,7 @@ export function DashboardPage() {
                   </span>
                   <button
                     onClick={(e) => handleDelete(e, report.id)}
-                    className="text-slate-300 hover:text-red-500 transition-colors cursor-pointer p-1"
+                    className="text-slate-300 hover:text-red-500 transition-colors cursor-pointer p-2 -mr-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
                     title="Delete report"
                   >
                     <Trash2 className="w-3.5 h-3.5" />

@@ -51,13 +51,13 @@ export function ReportPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Link to="/" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-blue-600 no-underline">
           <ArrowLeft className="w-4 h-4" />
           Back to reports
         </Link>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={handleRerun}
             disabled={actionLoading}
@@ -113,13 +113,13 @@ export function ReportPage() {
 
       {/* Transition to solution */}
       {currentReport.narrative?.transition && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
           <p className="text-sm text-blue-800 italic">{currentReport.narrative.transition}</p>
         </div>
       )}
 
       {currentReport.status === 'failed' && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4">
           <p className="text-sm text-red-700">
             Analysis failed. The structured findings above may still be useful.
           </p>

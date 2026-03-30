@@ -3,7 +3,7 @@ import type { CompanySnapshot as CompanySnapshotType } from '@/types'
 
 export function CompanySnapshot({ company }: { company: CompanySnapshotType }) {
   return (
-    <div className="bg-white rounded-lg border border-slate-200 p-5">
+    <div className="bg-white rounded-lg border border-slate-200 p-4 sm:p-5">
       <h2 className="text-lg font-semibold text-slate-900 mb-3">Company Snapshot</h2>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="flex items-start gap-2">

@@ -79,32 +79,35 @@ export function AuditPanel({ reportId, auditData, osintSources, onLoadAuditData 
         <div className="border-t border-slate-200">
           {/* Source tabs */}
           {availableTabs.length > 1 && (
-            <div className="flex border-b border-slate-200 overflow-x-auto">
-              {availableTabs.map(tab => {
-                const meta = SOURCE_META[tab] || { label: tab, icon: Database }
-                const Icon = meta.icon
-                const isActive = activeTab === tab
-                return (
-                  <button
-                    key={tab}
-                    onClick={() => handleTabChange(tab)}
-                    className={cn(
-                      'flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium whitespace-nowrap border-b-2 cursor-pointer transition-colors',
-                      isActive
-                        ? 'border-b-blue-500 text-blue-700'
-                        : 'border-b-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                    )}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                    {meta.label}
-                  </button>
-                )
-              })}
+            <div className="relative">
+              <div className="flex border-b border-slate-200 overflow-x-auto scrollbar-hide">
+                {availableTabs.map(tab => {
+                  const meta = SOURCE_META[tab] || { label: tab, icon: Database }
+                  const Icon = meta.icon
+                  const isActive = activeTab === tab
+                  return (
+                    <button
+                      key={tab}
+                      onClick={() => handleTabChange(tab)}
+                      className={cn(
+                        'flex items-center gap-1.5 px-3 py-3 sm:px-4 sm:py-2.5 text-xs font-medium whitespace-nowrap border-b-2 cursor-pointer transition-colors',
+                        isActive
+                          ? 'border-b-blue-500 text-blue-700'
+                          : 'border-b-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                      )}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      {meta.label}
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-white to-transparent pointer-events-none sm:hidden" />
             </div>
           )}
 
           {/* Tab content */}
-          <div className="p-4">
+          <div className="p-3 sm:p-4">
             {activeTab === 'dehashed' && auditData && (
               <DehashedTable auditData={auditData} page={page} pageSize={pageSize} onPageChange={setPage} />
             )}
@@ -145,32 +148,35 @@ function DehashedTable({ auditData, page, pageSize, onPageChange }: {
         <StatBox label="Queried At" value={new Date(auditData.queried_at).toLocaleString()} small />
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-200">
-              <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Email</th>
-              <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Source</th>
-              <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Username</th>
-              <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Password</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pageEntries.map((entry: AuditEntry, i: number) => (
-              <tr key={i} className="border-b border-slate-100 hover:bg-slate-50">
-                <td className="py-2 px-3 text-slate-700 font-mono text-xs">{(entry.email ?? []).join(', ') || '-'}</td>
-                <td className="py-2 px-3 text-slate-700 text-xs">{entry.database_name || '-'}</td>
-                <td className="py-2 px-3 text-slate-700 font-mono text-xs">{(entry.username ?? []).join(', ') || '-'}</td>
-                <td className="py-2 px-3 text-xs">
-                  {entry.password_exposed
-                    ? <span className="text-red-600 font-medium">Exposed</span>
-                    : <span className="text-slate-400">No</span>
-                  }
-                </td>
+      <div className="relative">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200">
+                <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Email</th>
+                <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Source</th>
+                <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Username</th>
+                <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Password</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {pageEntries.map((entry: AuditEntry, i: number) => (
+                <tr key={i} className="border-b border-slate-100 hover:bg-slate-50">
+                  <td className="py-2 px-3 text-slate-700 font-mono text-xs">{(entry.email ?? []).join(', ') || '-'}</td>
+                  <td className="py-2 px-3 text-slate-700 text-xs">{entry.database_name || '-'}</td>
+                  <td className="py-2 px-3 text-slate-700 font-mono text-xs">{(entry.username ?? []).join(', ') || '-'}</td>
+                  <td className="py-2 px-3 text-xs">
+                    {entry.password_exposed
+                      ? <span className="text-red-600 font-medium">Exposed</span>
+                      : <span className="text-slate-400">No</span>
+                    }
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-white to-transparent pointer-events-none sm:hidden" />
       </div>
 
       {totalPages > 1 && (
@@ -178,9 +184,9 @@ function DehashedTable({ auditData, page, pageSize, onPageChange }: {
           <span className="text-xs text-slate-500">Page {page + 1} of {totalPages}</span>
           <div className="flex gap-2">
             <button onClick={() => onPageChange(Math.max(0, page - 1))} disabled={page === 0}
-              className="px-3 py-1 text-xs border border-slate-300 rounded disabled:opacity-50 cursor-pointer">Previous</button>
+              className="px-4 py-2 sm:px-3 sm:py-1 text-xs border border-slate-300 rounded disabled:opacity-50 cursor-pointer min-h-[44px] sm:min-h-0">Previous</button>
             <button onClick={() => onPageChange(Math.min(totalPages - 1, page + 1))} disabled={page >= totalPages - 1}
-              className="px-3 py-1 text-xs border border-slate-300 rounded disabled:opacity-50 cursor-pointer">Next</button>
+              className="px-4 py-2 sm:px-3 sm:py-1 text-xs border border-slate-300 rounded disabled:opacity-50 cursor-pointer min-h-[44px] sm:min-h-0">Next</button>
           </div>
         </div>
       )}
@@ -273,30 +279,33 @@ function BuiltWithView({ data, queriedAt }: { data: Record<string, unknown>; que
       </div>
 
       {groups.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200">
-                <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Group</th>
-                <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Live Count</th>
-                <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Categories</th>
-              </tr>
-            </thead>
-            <tbody>
-              {groups.map((group, i) => {
-                const cats = technologies.filter(t => t.group === group.name)
-                return (
-                  <tr key={i} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="py-2 px-3 text-slate-700 text-xs font-medium">{group.name}</td>
-                    <td className="py-2 px-3 text-slate-700 text-xs">{group.live}</td>
-                    <td className="py-2 px-3 text-xs text-slate-500">
-                      {cats.map(c => c.name).join(', ') || '-'}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+        <div className="relative">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200">
+                  <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Group</th>
+                  <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Live Count</th>
+                  <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Categories</th>
+                </tr>
+              </thead>
+              <tbody>
+                {groups.map((group, i) => {
+                  const cats = technologies.filter(t => t.group === group.name)
+                  return (
+                    <tr key={i} className="border-b border-slate-100 hover:bg-slate-50">
+                      <td className="py-2 px-3 text-slate-700 text-xs font-medium">{group.name}</td>
+                      <td className="py-2 px-3 text-slate-700 text-xs">{group.live}</td>
+                      <td className="py-2 px-3 text-xs text-slate-500">
+                        {cats.map(c => c.name).join(', ') || '-'}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-white to-transparent pointer-events-none sm:hidden" />
         </div>
       )}
     </>
@@ -334,27 +343,30 @@ function HibpView({ data, queriedAt }: { data: Record<string, unknown>; queriedA
         <StatBox label="Queried At" value={new Date(queriedAt).toLocaleString()} small />
       </div>
       {breaches.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200">
-                <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Breach</th>
-                <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Date</th>
-                <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Records</th>
-                <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Data Types</th>
-              </tr>
-            </thead>
-            <tbody>
-              {breaches.map((b, i) => (
-                <tr key={i} className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="py-2 px-3 text-slate-700 text-xs font-medium">{b.Name as string || '-'}</td>
-                  <td className="py-2 px-3 text-slate-700 text-xs">{b.BreachDate as string || '-'}</td>
-                  <td className="py-2 px-3 text-slate-700 text-xs">{(b.PwnCount as number)?.toLocaleString() || '-'}</td>
-                  <td className="py-2 px-3 text-xs text-slate-500">{((b.DataClasses as string[]) || []).join(', ')}</td>
+        <div className="relative">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200">
+                  <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Breach</th>
+                  <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Date</th>
+                  <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Records</th>
+                  <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Data Types</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {breaches.map((b, i) => (
+                  <tr key={i} className="border-b border-slate-100 hover:bg-slate-50">
+                    <td className="py-2 px-3 text-slate-700 text-xs font-medium">{b.Name as string || '-'}</td>
+                    <td className="py-2 px-3 text-slate-700 text-xs">{b.BreachDate as string || '-'}</td>
+                    <td className="py-2 px-3 text-slate-700 text-xs">{(b.PwnCount as number)?.toLocaleString() || '-'}</td>
+                    <td className="py-2 px-3 text-xs text-slate-500">{((b.DataClasses as string[]) || []).join(', ')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-white to-transparent pointer-events-none sm:hidden" />
         </div>
       )}
     </>
@@ -425,7 +437,7 @@ function GenericJsonView({ data, queriedAt }: { data: Record<string, unknown>; q
 
 function StatBox({ label, value, small }: { label: string; value: string | number; small?: boolean }) {
   return (
-    <div className="bg-slate-50 rounded p-3">
+    <div className="bg-slate-50 rounded p-2.5 sm:p-3">
       <p className="text-xs text-slate-500">{label}</p>
       <p className={cn(small ? 'text-sm font-medium' : 'text-lg font-semibold', 'text-slate-900')}>
         {value}

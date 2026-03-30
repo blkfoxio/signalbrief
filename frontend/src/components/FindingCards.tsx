@@ -25,7 +25,7 @@ function CopyButton({ text, label }: { text: string; label?: string }) {
     setTimeout(() => setCopied(false), 2000)
   }
   return (
-    <button onClick={handleCopy} className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-blue-600 cursor-pointer px-2 py-1 rounded hover:bg-slate-50">
+    <button onClick={handleCopy} className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-blue-600 cursor-pointer px-2 py-1 rounded hover:bg-slate-50 min-h-[44px]">
       {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
       {label || 'Copy talk track'}
     </button>
@@ -85,7 +85,7 @@ function CredentialCard({ finding, data }: {
 
   return (
     <div className={cn('bg-white rounded-lg border border-slate-200 border-l-4 overflow-hidden', SEVERITY_BORDER[severity])}>
-      <div className="p-5">
+      <div className="p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex items-center gap-2">
             <KeyRound className="w-5 h-5 text-slate-600" />
@@ -112,7 +112,7 @@ function CredentialCard({ finding, data }: {
           {hasFindings && (
             <button
               onClick={() => setExpanded(!expanded)}
-              className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-blue-600 cursor-pointer px-2 py-1 rounded hover:bg-slate-50"
+              className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-blue-600 cursor-pointer px-2 py-1 rounded hover:bg-slate-50 min-h-[44px]"
             >
               {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
               {expanded ? 'Hide details' : 'Show details'}
@@ -122,7 +122,7 @@ function CredentialCard({ finding, data }: {
       </div>
 
       {expanded && hasFindings && (
-        <div className="border-t border-slate-100 bg-slate-50 p-4">
+        <div className="border-t border-slate-100 bg-slate-50 p-3 sm:p-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
             <div>
               <p className="text-lg font-bold text-slate-900">{data.total_emails_exposed}</p>
@@ -169,7 +169,7 @@ function AttackSurfaceCard({ finding, data }: {
 
   return (
     <div className={cn('bg-white rounded-lg border border-slate-200 border-l-4 overflow-hidden', SEVERITY_BORDER[severity])}>
-      <div className="p-5">
+      <div className="p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex items-center gap-2">
             <Globe className="w-5 h-5 text-slate-600" />
@@ -195,7 +195,7 @@ function AttackSurfaceCard({ finding, data }: {
           {hasFindings && (
             <button
               onClick={() => setExpanded(!expanded)}
-              className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-blue-600 cursor-pointer px-2 py-1 rounded hover:bg-slate-50"
+              className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-blue-600 cursor-pointer px-2 py-1 rounded hover:bg-slate-50 min-h-[44px]"
             >
               {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
               {expanded ? 'Hide details' : 'Show details'}
@@ -205,7 +205,7 @@ function AttackSurfaceCard({ finding, data }: {
       </div>
 
       {expanded && hasFindings && (
-        <div className="border-t border-slate-100 bg-slate-50 p-4 space-y-3">
+        <div className="border-t border-slate-100 bg-slate-50 p-3 sm:p-4 space-y-3">
           {data.exposed_ports?.length > 0 && (
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Open ports</p>
@@ -275,7 +275,7 @@ function RemediationCard({ finding, items }: {
 
   return (
     <div className={cn('bg-white rounded-lg border border-slate-200 border-l-4 overflow-hidden', SEVERITY_BORDER[topSeverity])}>
-      <div className="p-5">
+      <div className="p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex items-center gap-2">
             <Target className="w-5 h-5 text-slate-600" />
