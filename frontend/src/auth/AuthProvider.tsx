@@ -7,7 +7,7 @@ interface AuthContextType {
   user: User | null
   isLoading: boolean
   isAuthenticated: boolean
-  login: (accessToken: string, refreshToken: string, user: User) => void
+  login: (accessToken: string, user: User) => void
   logout: () => void
 }
 
@@ -23,32 +23,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  const login = useCallback((accessToken: string, refreshToken: string, userData: User) => {
+  const login = useCallback((accessToken: string, userData: User) => {
     setAccessToken(accessToken)
-    localStorage.setItem('refresh_token', refreshToken)
     setUser(userData)
   }, [])
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      await fetch('/api/auth/logout/', { method: 'POST', credentials: 'include' })
+    } catch { /* best-effort */ }
     setAccessToken(null)
-    localStorage.removeItem('refresh_token')
     setUser(null)
   }, [])
 
   useEffect(() => {
-    const refreshToken = localStorage.getItem('refresh_token')
-    if (!refreshToken) {
-      setIsLoading(false)
-      return
-    }
-
-    // Try to restore session
+    // Try to restore session using HttpOnly cookie (sent automatically)
     const restoreSession = async () => {
       try {
         const res = await fetch('/api/auth/refresh/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refresh: refreshToken }),
+          credentials: 'include',
         })
         if (!res.ok) throw new Error('Refresh failed')
         const data = await res.json()
@@ -56,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userData = await getMe()
         setUser(userData)
       } catch {
-        localStorage.removeItem('refresh_token')
+        // No valid session
       } finally {
         setIsLoading(false)
       }

@@ -37,6 +37,7 @@ class ReportGenerationThrottle(UserRateThrottle):
 
 
 @api_view(["GET", "POST"])
+@throttle_classes([ReportGenerationThrottle])
 def report_list_create(request):
     """
     GET: List user's past analyses.
@@ -86,6 +87,10 @@ def report_audit(request, report_id):
 @api_view(["GET"])
 def report_osint_raw(request, report_id, source):
     """Get raw OSINT data for a specific source."""
+    valid_sources = {choice.value for choice in OsintResult.Source}
+    if source not in valid_sources:
+        return Response({"error": "Invalid source"}, status=status.HTTP_400_BAD_REQUEST)
+
     try:
         analysis = Analysis.objects.get(id=report_id, created_by=request.user)
     except Analysis.DoesNotExist:
@@ -132,7 +137,6 @@ def _list_reports(request):
     return Response(serializer.data)
 
 
-@throttle_classes([ReportGenerationThrottle])
 def _create_report(request):
     """Validate inputs, resolve domain, upsert company, then run pipeline."""
     serializer = ReportInputSerializer(data=request.data)
@@ -152,7 +156,7 @@ def _create_report(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    company, _ = Company.objects.update_or_create(
+    company, created = Company.objects.get_or_create(
         domain=resolved["domain"],
         defaults={
             "name": resolved["company_name"] or resolved["domain"],
@@ -161,6 +165,12 @@ def _create_report(request):
             "created_by": request.user,
         },
     )
+    if not created:
+        # Update metadata but preserve original creator
+        company.name = resolved["company_name"] or company.name
+        company.linkedin_url = resolved["linkedin_url"] or company.linkedin_url
+        company.contact_email = resolved["contact_email"] or company.contact_email
+        company.save(update_fields=["name", "linkedin_url", "contact_email", "updated_at"])
 
     return _run_pipeline(request, company)
 
@@ -316,7 +326,7 @@ def _run_pipeline(request, company):
         analysis.error_message = str(e)
         analysis.save(update_fields=["status", "error_message", "updated_at"])
         return Response(
-            {"error": "Analysis failed. Please try again.", "detail": str(e)},
+            {"error": "Analysis failed. Please try again."},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 

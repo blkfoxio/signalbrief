@@ -1,5 +1,8 @@
-"""Google OAuth service."""
+"""Google OAuth service with PKCE."""
 
+import hashlib
+import secrets
+from base64 import urlsafe_b64encode
 from urllib.parse import urlencode
 
 import httpx
@@ -11,8 +14,17 @@ GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
 SCOPES = "openid email profile"
 
 
-def get_auth_url(state: str) -> str:
-    """Generate Google OAuth authorization URL."""
+def _generate_pkce_pair() -> tuple[str, str]:
+    """Generate PKCE code_verifier and code_challenge (S256)."""
+    code_verifier = secrets.token_urlsafe(64)
+    digest = hashlib.sha256(code_verifier.encode("ascii")).digest()
+    code_challenge = urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
+    return code_verifier, code_challenge
+
+
+def get_auth_url(state: str) -> tuple[str, str]:
+    """Generate Google OAuth authorization URL with PKCE. Returns (url, code_verifier)."""
+    code_verifier, code_challenge = _generate_pkce_pair()
     params = {
         "client_id": settings.GOOGLE_CLIENT_ID,
         "redirect_uri": settings.GOOGLE_REDIRECT_URI,
@@ -21,12 +33,14 @@ def get_auth_url(state: str) -> str:
         "state": state,
         "access_type": "offline",
         "prompt": "select_account",
+        "code_challenge": code_challenge,
+        "code_challenge_method": "S256",
     }
-    return f"{GOOGLE_AUTH_URL}?{urlencode(params)}"
+    return f"{GOOGLE_AUTH_URL}?{urlencode(params)}", code_verifier
 
 
-async def exchange_code_for_tokens(code: str) -> dict:
-    """Exchange authorization code for access/refresh tokens."""
+async def exchange_code_for_tokens(code: str, code_verifier: str) -> dict:
+    """Exchange authorization code for access/refresh tokens with PKCE verifier."""
     async with httpx.AsyncClient(timeout=15.0) as client:
         response = await client.post(
             GOOGLE_TOKEN_URL,
@@ -36,6 +50,7 @@ async def exchange_code_for_tokens(code: str) -> dict:
                 "client_secret": settings.GOOGLE_CLIENT_SECRET,
                 "redirect_uri": settings.GOOGLE_REDIRECT_URI,
                 "grant_type": "authorization_code",
+                "code_verifier": code_verifier,
             },
         )
         response.raise_for_status()

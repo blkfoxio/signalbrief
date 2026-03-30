@@ -26,7 +26,7 @@ export function CallbackPage() {
       try {
         const exchangeFn = provider === 'microsoft' ? exchangeMicrosoftCode : exchangeGoogleCode
         const res = await exchangeFn(code, state)
-        login(res.access_token, res.refresh_token, res.user)
+        login(res.access_token, res.user)
         navigate('/')
       } catch {
         setError('Authentication failed. Please try again.')

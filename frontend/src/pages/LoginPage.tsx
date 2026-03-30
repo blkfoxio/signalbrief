@@ -32,7 +32,7 @@ export function LoginPage() {
     try {
       const authFn = mode === 'register' ? devRegister : devLogin
       const res = await authFn(email, password)
-      login(res.access_token, res.refresh_token, res.user)
+      login(res.access_token, res.user)
       navigate('/')
     } catch (err: unknown) {
       if (err && typeof err === 'object' && 'response' in err) {

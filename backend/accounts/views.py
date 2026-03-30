@@ -1,6 +1,10 @@
 """Authentication views: Google OAuth, Microsoft OAuth, and dev email/password."""
 
+import logging
 import secrets
+import uuid
+
+logger = logging.getLogger(__name__)
 
 from asgiref.sync import async_to_sync
 from django.conf import settings
@@ -22,6 +26,17 @@ from .services import google_service, msal_service
 User = get_user_model()
 
 
+def _unique_username(base: str) -> str:
+    """Generate a unique username, appending a short suffix if needed."""
+    if not User.objects.filter(username=base).exists():
+        return base
+    return f"{base}_{uuid.uuid4().hex[:6]}"
+
+
+REFRESH_COOKIE_NAME = "refresh_token"
+REFRESH_COOKIE_MAX_AGE = 7 * 24 * 60 * 60  # 7 days, matches SIMPLE_JWT REFRESH_TOKEN_LIFETIME
+
+
 def _get_tokens_for_user(user):
     """Generate JWT token pair for a user."""
     refresh = RefreshToken.for_user(user)
@@ -31,16 +46,52 @@ def _get_tokens_for_user(user):
     }
 
 
+def _set_refresh_cookie(response, refresh_token):
+    """Set the refresh token as an HttpOnly secure cookie."""
+    is_secure = not settings.DEBUG
+    response.set_cookie(
+        REFRESH_COOKIE_NAME,
+        refresh_token,
+        max_age=REFRESH_COOKIE_MAX_AGE,
+        httponly=True,
+        secure=is_secure,
+        samesite="Lax",
+        path="/api/auth/",
+    )
+    return response
+
+
+def _clear_refresh_cookie(response):
+    """Remove the refresh token cookie."""
+    response.delete_cookie(REFRESH_COOKIE_NAME, path="/api/auth/")
+    return response
+
+
+def _auth_response(user, http_status=status.HTTP_200_OK):
+    """Build an auth response with access token in body and refresh token in HttpOnly cookie."""
+    tokens = _get_tokens_for_user(user)
+    response = Response(
+        {
+            "access_token": tokens["access_token"],
+            "user": UserSerializer(user).data,
+        },
+        status=http_status,
+    )
+    _set_refresh_cookie(response, tokens["refresh_token"])
+    return response
+
+
 # --- Google OAuth ---
 
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def google_login_view(request):
-    """Return Google OAuth authorization URL."""
+    """Return Google OAuth authorization URL with PKCE."""
     state = secrets.token_urlsafe(32)
     request.session["oauth_state"] = state
-    auth_url = google_service.get_auth_url(state)
+    auth_url, code_verifier = google_service.get_auth_url(state)
+    request.session["pkce_code_verifier"] = code_verifier
     return Response({"auth_url": auth_url})
 
 
@@ -51,12 +102,19 @@ def google_callback_view(request):
     serializer = OAuthCallbackSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
+    # Validate OAuth state to prevent CSRF
+    expected_state = request.session.pop("oauth_state", None)
+    if not expected_state or serializer.validated_data["state"] != expected_state:
+        return Response({"error": "Invalid OAuth state"}, status=status.HTTP_400_BAD_REQUEST)
+
     code = serializer.validated_data["code"]
+    code_verifier = request.session.pop("pkce_code_verifier", "")
 
     try:
-        token_result = async_to_sync(google_service.exchange_code_for_tokens)(code)
-    except Exception as e:
-        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        token_result = async_to_sync(google_service.exchange_code_for_tokens)(code, code_verifier)
+    except Exception:
+        logger.exception("Google OAuth token exchange failed")
+        return Response({"error": "Authentication failed"}, status=status.HTTP_400_BAD_REQUEST)
 
     access_token = token_result.get("access_token")
     if not access_token:
@@ -85,17 +143,13 @@ def google_callback_view(request):
         user = User.objects.create(
             google_id=google_id,
             email=email,
-            username=email.split("@")[0] if email else google_id,
+            username=_unique_username(email.split("@")[0] if email else google_id),
             first_name=profile.get("given_name", ""),
             last_name=profile.get("family_name", ""),
             avatar_url=profile.get("picture", ""),
         )
 
-    tokens = _get_tokens_for_user(user)
-    return Response({
-        **tokens,
-        "user": UserSerializer(user).data,
-    })
+    return _auth_response(user)
 
 
 # --- Microsoft OAuth ---
@@ -118,12 +172,18 @@ def microsoft_callback_view(request):
     serializer = OAuthCallbackSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
+    # Validate OAuth state to prevent CSRF
+    expected_state = request.session.pop("oauth_state", None)
+    if not expected_state or serializer.validated_data["state"] != expected_state:
+        return Response({"error": "Invalid OAuth state"}, status=status.HTTP_400_BAD_REQUEST)
+
     code = serializer.validated_data["code"]
 
     try:
         token_result = msal_service.exchange_code_for_tokens(code)
-    except ValueError as e:
-        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    except ValueError:
+        logger.exception("Microsoft OAuth token exchange failed")
+        return Response({"error": "Authentication failed"}, status=status.HTTP_400_BAD_REQUEST)
 
     ms_access_token = token_result.get("access_token")
     if not ms_access_token:
@@ -138,17 +198,13 @@ def microsoft_callback_view(request):
         microsoft_id=microsoft_id,
         defaults={
             "email": email,
-            "username": email.split("@")[0] if email else microsoft_id,
+            "username": _unique_username(email.split("@")[0] if email else microsoft_id),
             "first_name": profile.get("givenName", ""),
             "last_name": profile.get("surname", ""),
         },
     )
 
-    tokens = _get_tokens_for_user(user)
-    return Response({
-        **tokens,
-        "user": UserSerializer(user).data,
-    })
+    return _auth_response(user)
 
 
 # --- Common ---
@@ -175,18 +231,14 @@ def dev_register_view(request):
     serializer.is_valid(raise_exception=True)
 
     user = User.objects.create_user(
-        username=serializer.validated_data["email"].split("@")[0],
+        username=_unique_username(serializer.validated_data["email"].split("@")[0]),
         email=serializer.validated_data["email"],
         password=serializer.validated_data["password"],
         first_name=serializer.validated_data.get("first_name", ""),
         last_name=serializer.validated_data.get("last_name", ""),
     )
 
-    tokens = _get_tokens_for_user(user)
-    return Response({
-        **tokens,
-        "user": UserSerializer(user).data,
-    }, status=status.HTTP_201_CREATED)
+    return _auth_response(user, http_status=status.HTTP_201_CREATED)
 
 
 @api_view(["POST"])
@@ -207,8 +259,44 @@ def dev_login_view(request):
     if not user.check_password(serializer.validated_data["password"]):
         return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
-    tokens = _get_tokens_for_user(user)
-    return Response({
-        **tokens,
-        "user": UserSerializer(user).data,
-    })
+    return _auth_response(user)
+
+
+# --- Token refresh (reads from HttpOnly cookie) ---
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def refresh_token_view(request):
+    """Refresh JWT tokens using the HttpOnly cookie."""
+    refresh_token = request.COOKIES.get(REFRESH_COOKIE_NAME)
+    if not refresh_token:
+        return Response({"error": "No refresh token"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    try:
+        refresh = RefreshToken(refresh_token)
+        new_access = str(refresh.access_token)
+
+        # Rotate refresh token
+        new_refresh = str(refresh)
+        if settings.SIMPLE_JWT.get("ROTATE_REFRESH_TOKENS", False):
+            refresh.set_jti()
+            refresh.set_exp()
+            new_refresh = str(refresh)
+
+        response = Response({"access": new_access})
+        _set_refresh_cookie(response, new_refresh)
+        return response
+    except Exception:
+        response = Response({"error": "Invalid or expired refresh token"}, status=status.HTTP_401_UNAUTHORIZED)
+        _clear_refresh_cookie(response)
+        return response
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def logout_view(request):
+    """Clear the refresh token cookie."""
+    response = Response({"detail": "Logged out"})
+    _clear_refresh_cookie(response)
+    return response

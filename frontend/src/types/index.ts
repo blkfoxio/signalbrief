@@ -7,12 +7,8 @@ export interface User {
   avatar_url: string
 }
 
-export interface AuthTokens {
+export interface AuthResponse {
   access_token: string
-  refresh_token: string
-}
-
-export interface AuthResponse extends AuthTokens {
   user: User
 }
 
