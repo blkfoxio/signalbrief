@@ -1,6 +1,6 @@
 import { createContext, useCallback, useEffect, useState, type ReactNode } from 'react'
 import { getMe } from '@/api/endpoints'
-import { setAccessToken } from '@/api/client'
+import client, { setAccessToken } from '@/api/client'
 import type { User } from '@/types'
 
 interface AuthContextType {
@@ -30,7 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
-      await fetch('/api/auth/logout/', { method: 'POST', credentials: 'include' })
+      await client.post('/auth/logout/')
     } catch { /* best-effort */ }
     setAccessToken(null)
     setUser(null)
@@ -40,14 +40,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Try to restore session using HttpOnly cookie (sent automatically)
     const restoreSession = async () => {
       try {
-        const res = await fetch('/api/auth/refresh/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-        })
-        if (!res.ok) throw new Error('Refresh failed')
-        const data = await res.json()
-        setAccessToken(data.access)
+        const res = await client.post('/auth/refresh/')
+        setAccessToken(res.data.access)
         const userData = await getMe()
         setUser(userData)
       } catch {
