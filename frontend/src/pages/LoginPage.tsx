@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Shield, Loader2 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
-import { devLogin, devRegister, getGoogleLoginUrl } from '@/api/endpoints'
+import { devLogin, devRegister, getGoogleLoginUrl, getMicrosoftLoginUrl } from '@/api/endpoints'
 
 export function LoginPage() {
   const { login } = useAuth()
@@ -18,6 +18,18 @@ export function LoginPage() {
     try {
       localStorage.setItem('oauth_provider', 'google')
       const authUrl = await getGoogleLoginUrl()
+      window.location.href = authUrl
+    } catch {
+      setError('Failed to initiate login')
+      setIsLoading(false)
+    }
+  }
+
+  const handleMicrosoftLogin = async () => {
+    setIsLoading(true)
+    try {
+      localStorage.setItem('oauth_provider', 'microsoft')
+      const authUrl = await getMicrosoftLoginUrl()
       window.location.href = authUrl
     } catch {
       setError('Failed to initiate login')
@@ -73,11 +85,17 @@ export function LoginPage() {
           </button>
 
           <button
-            disabled
-            className="w-full py-2.5 bg-slate-100 text-slate-400 rounded-lg text-sm font-medium flex items-center justify-center gap-2 cursor-not-allowed"
+            onClick={handleMicrosoftLogin}
+            disabled={isLoading}
+            className="w-full py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
           >
+            <svg className="w-4 h-4" viewBox="0 0 21 21">
+              <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+              <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+              <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+              <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+            </svg>
             Sign in with Microsoft
-            <span className="text-xs bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded">Coming Soon</span>
           </button>
 
           {error && <p className="text-xs text-red-600 mt-2">{error}</p>}

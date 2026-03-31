@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { exchangeGoogleCode, exchangeMicrosoftCode } from '@/api/endpoints'
@@ -9,8 +9,12 @@ export function CallbackPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
   const [error, setError] = useState('')
+  const handled = useRef(false)
 
   useEffect(() => {
+    if (handled.current) return
+    handled.current = true
+
     const code = searchParams.get('code')
     const state = searchParams.get('state')
 
