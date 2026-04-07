@@ -123,7 +123,10 @@ SIMPLE_JWT = {
 
 # CORS
 FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:5173")
-CORS_ALLOWED_ORIGINS = [FRONTEND_URL]
+WIDGET_ALLOWED_ORIGINS = config("WIDGET_ALLOWED_ORIGINS", default="")
+CORS_ALLOWED_ORIGINS = [FRONTEND_URL] + [
+    origin.strip() for origin in WIDGET_ALLOWED_ORIGINS.split(",") if origin.strip()
+]
 CORS_ALLOW_CREDENTIALS = True
 
 # External API keys
