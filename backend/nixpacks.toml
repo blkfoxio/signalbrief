@@ -1,13 +1,16 @@
 [phases.setup]
 nixPkgs = ["python311"]
-# WeasyPrint dlopens pango/glib/harfbuzz at runtime. nixPkgs installs to the
-# Nix store which isn't on the default ld search path, so these have to be
-# apt-installed (which lands them in /usr/lib where ldconfig finds them).
-# libpango-1.0-0 transitively pulls in glib/gobject/freetype/fontconfig.
+# WeasyPrint dlopens these at runtime. List every shared lib explicitly —
+# nixpacks's runtime image doesn't preserve transitive apt deps reliably,
+# so relying on libpango to pull in glib/freetype/fontconfig isn't enough.
+# libglib2.0-0 is the one that actually provides libgobject-2.0.so.0.
 aptPkgs = [
     "libpango-1.0-0",
     "libpangoft2-1.0-0",
     "libharfbuzz0b",
+    "libglib2.0-0",
+    "libfontconfig1",
+    "libfreetype6",
     "shared-mime-info",
     "fonts-liberation",
 ]
