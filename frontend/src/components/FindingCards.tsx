@@ -46,7 +46,7 @@ const EMPTY_CRED: CorrelatedFindings['credential_exposure'] = {
 }
 
 const EMPTY_SURFACE: CorrelatedFindings['attack_surface'] = {
-  severity: 'low', exposed_ports: [], high_risk_services: {}, cves: [],
+  severity: 'low', host_ip: '', hostnames: [], exposed_ports: [], high_risk_services: {}, cves: [],
   subdomain_count: 0, subdomain_sample: [], dns_issues: [], tech_count: 0,
   security_tools: [], missing_defenses: [], evidence: [], sources: [],
 }
@@ -141,7 +141,26 @@ function CredentialCard({ finding, data }: {
               <p className="text-xs text-slate-500">Known breaches</p>
             </div>
           </div>
-          {data.breach_names?.length > 0 && (
+          {(data.breach_details && data.breach_details.length > 0) ? (
+            <div className="mt-3 pt-3 border-t border-slate-200">
+              <p className="text-xs text-slate-500 mb-1.5">Breach sources:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {data.breach_details.map(b => (
+                  <span
+                    key={b.name}
+                    className="inline-flex items-baseline gap-1.5 text-xs bg-white text-slate-700 px-2 py-0.5 rounded border border-slate-200"
+                    title={b.data_classes?.join(', ')}
+                  >
+                    <span className="font-medium">{b.title || b.name}</span>
+                    {b.breach_date && <span className="text-slate-400 font-mono">{b.breach_date}</span>}
+                    {b.pwn_count > 0 && (
+                      <span className="text-slate-400">· {b.pwn_count.toLocaleString()} records</span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : data.breach_names?.length > 0 && (
             <div className="mt-3 pt-3 border-t border-slate-200">
               <p className="text-xs text-slate-500 mb-1">Breach sources:</p>
               <div className="flex flex-wrap gap-1">
@@ -206,6 +225,24 @@ function AttackSurfaceCard({ finding, data }: {
 
       {expanded && hasFindings && (
         <div className="border-t border-slate-100 bg-slate-50 p-3 sm:p-4 space-y-3">
+          {(data.host_ip || (data.hostnames && data.hostnames.length > 0)) && (
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Exposed host</p>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {data.host_ip && (
+                  <span className="px-2 py-0.5 text-xs font-mono bg-white text-slate-700 rounded border border-slate-200">
+                    {data.host_ip}
+                  </span>
+                )}
+                {data.hostnames?.map(h => (
+                  <span key={h} className="px-2 py-0.5 text-xs font-mono bg-white text-slate-600 rounded border border-slate-200">
+                    {h}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {data.exposed_ports?.length > 0 && (
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Open ports</p>

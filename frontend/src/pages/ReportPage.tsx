@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, RefreshCw, Trash2, Loader2 } from 'lucide-react'
+import { ArrowLeft, RefreshCw, Trash2, Loader2, Download } from 'lucide-react'
 import { useReport } from '@/hooks/useReport'
 import { CompanySnapshot } from '@/components/CompanySnapshot'
 import { RiskOverview } from '@/components/RiskOverview'
 import { FindingCards } from '@/components/FindingCards'
 import { AuditPanel } from '@/components/AuditPanel'
 import { LoadingState } from '@/components/LoadingState'
+import { downloadReportPdf } from '@/api/endpoints'
 
 export function ReportPage() {
   const { id } = useParams<{ id: string }>()
@@ -14,6 +15,7 @@ export function ReportPage() {
   const { currentReport, auditData, isLoading, fetchReport, fetchAuditData, rerunReport, removeReport } = useReport()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
+  const [pdfLoading, setPdfLoading] = useState(false)
 
   useEffect(() => {
     if (id) fetchReport(id)
@@ -29,6 +31,18 @@ export function ReportPage() {
       // error handled by hook
     } finally {
       setActionLoading(false)
+    }
+  }
+
+  const handleExportPdf = async () => {
+    if (!id) return
+    setPdfLoading(true)
+    try {
+      await downloadReportPdf(id)
+    } catch (err) {
+      console.error('PDF export failed:', err)
+    } finally {
+      setPdfLoading(false)
     }
   }
 
@@ -58,6 +72,15 @@ export function ReportPage() {
           Back to reports
         </Link>
         <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={handleExportPdf}
+            disabled={pdfLoading || !currentReport.narrative}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+            title="Download report as PDF"
+          >
+            {pdfLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+            Download PDF
+          </button>
           <button
             onClick={handleRerun}
             disabled={actionLoading}

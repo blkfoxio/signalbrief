@@ -74,3 +74,19 @@ export async function rerunReport(id: string): Promise<Report> {
   const res = await client.post<Report>(`/reports/${id}/rerun/`)
   return res.data
 }
+
+export async function downloadReportPdf(id: string): Promise<void> {
+  const res = await client.get(`/reports/${id}/export.pdf/`, { responseType: 'blob' })
+  const blob = res.data as Blob
+  const disposition = (res.headers['content-disposition'] as string | undefined) || ''
+  const match = disposition.match(/filename="?([^"]+)"?/)
+  const filename = match?.[1] || `signalbrief-${id}.pdf`
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}

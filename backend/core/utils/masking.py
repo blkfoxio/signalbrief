@@ -49,13 +49,15 @@ def mask_dehashed_entry(entry: dict) -> dict:
     """Mask sensitive fields in a single DeHashed result entry."""
     masked = dict(entry)
 
+    masked["password_exposed"] = bool(entry.get("password"))
+    masked["hash_exposed"] = bool(entry.get("hashed_password"))
+
     if "password" in masked:
         passwords = masked["password"]
         if isinstance(passwords, list):
             masked["password"] = [MASKED_PASSWORD for _ in passwords]
         else:
             masked["password"] = MASKED_PASSWORD
-        masked["password_exposed"] = bool(entry.get("password"))
 
     if "hashed_password" in masked:
         hashes = masked["hashed_password"]

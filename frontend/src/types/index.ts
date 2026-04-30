@@ -36,6 +36,14 @@ export interface FindingSummary {
   talk_track: string
 }
 
+export interface BreachDetail {
+  name: string
+  title: string
+  breach_date: string
+  pwn_count: number
+  data_classes: string[]
+}
+
 export interface RemediationItem {
   priority: number
   title: string
@@ -55,6 +63,7 @@ export interface CorrelatedFindings {
     market_credentials: number
     breach_count: number
     breach_names: string[]
+    breach_details?: BreachDetail[]
     repeated_exposures: number
     days_since_breach: number | null
     total_exposed_credentials: number
@@ -63,6 +72,8 @@ export interface CorrelatedFindings {
   }
   attack_surface: {
     severity: string
+    host_ip?: string
+    hostnames?: string[]
     exposed_ports: number[]
     high_risk_services: Record<string, string>
     cves: string[]
@@ -128,6 +139,7 @@ export interface AuditEntry {
   username?: string[]
   password?: string[]
   password_exposed?: boolean
+  hash_exposed?: boolean
   hashed_password?: string[]
   ip_address?: string[]
   database_name?: string

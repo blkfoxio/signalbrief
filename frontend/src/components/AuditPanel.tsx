@@ -132,9 +132,8 @@ function DehashedTable({ auditData, page, pageSize, onPageChange }: {
   onPageChange: (p: number) => void
 }) {
   const entries = [...(auditData.entries ?? [])].sort((a, b) => {
-    const aExposed = a.password_exposed ? 1 : 0
-    const bExposed = b.password_exposed ? 1 : 0
-    return bExposed - aExposed
+    const rank = (e: AuditEntry) => (e.password_exposed ? 2 : e.hash_exposed ? 1 : 0)
+    return rank(b) - rank(a)
   })
   const totalPages = Math.ceil(entries.length / pageSize)
   const pageEntries = entries.slice(page * pageSize, (page + 1) * pageSize)
@@ -166,10 +165,17 @@ function DehashedTable({ auditData, page, pageSize, onPageChange }: {
                   <td className="py-2 px-3 text-slate-700 text-xs">{entry.database_name || '-'}</td>
                   <td className="py-2 px-3 text-slate-700 font-mono text-xs">{(entry.username ?? []).join(', ') || '-'}</td>
                   <td className="py-2 px-3 text-xs">
-                    {entry.password_exposed
-                      ? <span className="text-red-600 font-medium">Exposed</span>
-                      : <span className="text-slate-400">No</span>
-                    }
+                    {entry.password_exposed ? (
+                      <span className="px-1.5 py-0.5 rounded bg-red-50 text-red-700 font-medium" title="Plaintext password present in breach data">
+                        Plaintext
+                      </span>
+                    ) : entry.hash_exposed ? (
+                      <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 font-medium" title="Hashed password present — vulnerable to offline cracking">
+                        Hash
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">No</span>
+                    )}
                   </td>
                 </tr>
               ))}

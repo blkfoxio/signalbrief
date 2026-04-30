@@ -2,8 +2,10 @@
 
 import asyncio
 import logging
+import re
 
 from asgiref.sync import sync_to_async
+from django.http import HttpResponse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, throttle_classes
@@ -108,6 +110,35 @@ def report_osint_raw(request, report_id, source):
         "queried_at": result.queried_at,
         "data": result.raw_response,
     })
+
+
+@api_view(["GET"])
+def report_export_pdf(request, report_id):
+    """Render the report as a downloadable PDF."""
+    try:
+        analysis = (
+            Analysis.objects.select_related("company", "company__enrichment", "dehashed_result")
+            .prefetch_related("osint_results", "narrative")
+            .get(id=report_id, created_by=request.user)
+        )
+    except Analysis.DoesNotExist:
+        return Response({"error": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        from .services.pdf_exporter import render_report_pdf
+        pdf_bytes = render_report_pdf(analysis)
+    except Exception as e:
+        logger.exception(f"PDF export failed for analysis {report_id}: {e}")
+        return Response(
+            {"error": "PDF export failed."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    safe_domain = re.sub(r"[^A-Za-z0-9._-]", "_", analysis.company.domain or "report")
+    filename = f"signalbrief-{safe_domain}-{analysis.created_at:%Y%m%d}.pdf"
+    response = HttpResponse(pdf_bytes, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
 
 
 @api_view(["POST"])

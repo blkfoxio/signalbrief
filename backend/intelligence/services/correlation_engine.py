@@ -74,6 +74,19 @@ def _build_credential_exposure(signals: list[dict], osint_results: dict) -> dict
     market_count = credential_market.get("value", {}).get("count", 0) if credential_market else 0
     days_since_breach = recency_signal.get("value", {}).get("days_ago") if recency_signal else None
 
+    # Per-breach detail (name + date + record count) so the card can show *which* breaches.
+    hibp_raw = osint_results.get("hibp") or {}
+    breach_details = [
+        {
+            "name": b.get("Name", ""),
+            "title": b.get("Title", b.get("Name", "")),
+            "breach_date": b.get("BreachDate", ""),
+            "pwn_count": b.get("PwnCount", 0),
+            "data_classes": b.get("DataClasses", []) or [],
+        }
+        for b in (hibp_raw.get("breaches") or [])
+    ][:20]
+
     # Total exposed credentials = passwords + stealer log credentials
     total_exposed = confirmed_passwords + stealer_hits
 
@@ -119,6 +132,7 @@ def _build_credential_exposure(signals: list[dict], osint_results: dict) -> dict
         "market_credentials": market_count,
         "breach_count": breach_count,
         "breach_names": breach_names[:10],
+        "breach_details": breach_details,
         "repeated_exposures": repeated_count,
         "days_since_breach": days_since_breach,
         "total_exposed_credentials": total_exposed,
@@ -137,6 +151,14 @@ def _build_attack_surface(signals: list[dict], osint_results: dict) -> dict:
     # Exposed services (Shodan + Censys)
     shodan_svc = _find_signal(signals, "exposed_services", source="shodan")
     censys_svc = _find_signal(signals, "exposed_services", source="censys")
+
+    # Pull host identifiers (IP + hostnames) from raw Shodan response so the
+    # finding card can show *which* host the ports/CVEs belong to.
+    shodan_raw = osint_results.get("shodan") or {}
+    shodan_hosts_raw = shodan_raw.get("hosts") or []
+    primary_host = shodan_hosts_raw[0] if shodan_hosts_raw else {}
+    host_ip = shodan_raw.get("ip") or primary_host.get("ip_str") or ""
+    hostnames = list(primary_host.get("hostnames") or [])
 
     # Merge ports from both sources
     all_ports = set()
@@ -224,6 +246,8 @@ def _build_attack_surface(signals: list[dict], osint_results: dict) -> dict:
 
     return {
         "severity": severity,
+        "host_ip": host_ip,
+        "hostnames": hostnames,
         "exposed_ports": sorted(all_ports),
         "high_risk_services": high_risk_found,
         "cves": cves,

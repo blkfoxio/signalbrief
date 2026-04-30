@@ -1,0 +1,339 @@
+{% load report_pdf_extras %}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{{ company.name|default:company.domain }} — SignalBrief Report</title>
+<style>
+  @page {
+    size: Letter;
+    margin: 0.75in 0.75in 1in 0.75in;
+    @bottom-left {
+      content: "SignalBrief — {{ company.domain }}";
+      font-size: 9pt;
+      color: #64748b;
+    }
+    @bottom-right {
+      content: "Page " counter(page) " of " counter(pages);
+      font-size: 9pt;
+      color: #64748b;
+    }
+  }
+  body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 10pt; color: #0f172a; line-height: 1.45; }
+  h1 { font-size: 22pt; margin: 0 0 4pt; color: #0f172a; }
+  h2 { font-size: 14pt; margin: 18pt 0 6pt; color: #0f172a; border-bottom: 1pt solid #e2e8f0; padding-bottom: 3pt; }
+  h3 { font-size: 11pt; margin: 12pt 0 4pt; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5pt; }
+  p { margin: 0 0 6pt; }
+
+  .header { border-bottom: 2pt solid #0f172a; padding-bottom: 8pt; margin-bottom: 12pt; }
+  .header .meta { font-size: 9pt; color: #64748b; margin-top: 2pt; }
+  .brand { font-size: 8.5pt; letter-spacing: 1.5pt; color: #64748b; text-transform: uppercase; }
+
+  .badge {
+    display: inline-block; padding: 1pt 6pt; border-radius: 8pt;
+    font-size: 8pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.4pt;
+  }
+  .sev-low { background: #f1f5f9; color: #475569; }
+  .sev-medium { background: #fef9c3; color: #854d0e; }
+  .sev-high { background: #ffedd5; color: #9a3412; }
+  .sev-critical { background: #fee2e2; color: #991b1b; }
+  .sev-warning { background: #fef3c7; color: #92400e; }
+
+  .card {
+    border: 1pt solid #e2e8f0;
+    border-left: 3pt solid #94a3b8;
+    border-radius: 4pt;
+    padding: 10pt 12pt;
+    margin-bottom: 10pt;
+    page-break-inside: avoid;
+  }
+  .card.sev-low { border-left-color: #94a3b8; }
+  .card.sev-medium { border-left-color: #facc15; }
+  .card.sev-high { border-left-color: #fb923c; }
+  .card.sev-critical { border-left-color: #ef4444; }
+  .card-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4pt; }
+  .card-title { font-size: 10pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5pt; }
+
+  .pill {
+    display: inline-block; padding: 1pt 6pt; margin: 1pt 2pt 1pt 0;
+    background: #f1f5f9; color: #334155; border-radius: 3pt;
+    font-size: 8.5pt;
+  }
+  .pill-mono { font-family: 'Courier', 'Courier New', monospace; font-size: 8pt; }
+  .pill-risk { background: #fee2e2; color: #991b1b; }
+  .pill-warn { background: #fff7ed; color: #9a3412; }
+
+  .label { font-size: 8pt; font-weight: bold; text-transform: uppercase; color: #64748b; letter-spacing: 0.4pt; margin-bottom: 2pt; }
+  .stat-grid { display: table; width: 100%; margin: 6pt 0; }
+  .stat { display: table-cell; padding: 4pt 6pt; background: #f8fafc; border-radius: 3pt; text-align: center; }
+  .stat + .stat { border-left: 4pt solid #fff; }
+  .stat-num { font-size: 14pt; font-weight: bold; color: #0f172a; }
+  .stat-num.danger { color: #dc2626; }
+  .stat-label { font-size: 8pt; color: #64748b; }
+
+  .table { width: 100%; border-collapse: collapse; font-size: 8.5pt; margin: 4pt 0 8pt; }
+  .table th, .table td { border-bottom: 0.5pt solid #e2e8f0; padding: 3pt 6pt; text-align: left; vertical-align: top; }
+  .table th { background: #f8fafc; font-weight: bold; text-transform: uppercase; font-size: 7.5pt; color: #475569; letter-spacing: 0.4pt; }
+  .table td.mono { font-family: 'Courier', 'Courier New', monospace; font-size: 7.5pt; }
+
+  .muted { color: #64748b; }
+  .small { font-size: 8.5pt; }
+  .transition { background: #eff6ff; border: 0.5pt solid #bfdbfe; color: #1e40af; padding: 8pt 10pt; border-radius: 3pt; font-style: italic; margin: 10pt 0; }
+  .appendix-source { page-break-inside: avoid; margin-bottom: 14pt; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="brand">SignalBrief Security Report</div>
+  <h1>{{ company.name|default:company.domain }}</h1>
+  <div class="meta">
+    {{ company.domain }}{% if company.industry %} · {{ company.industry }}{% endif %}{% if company.employee_range %} · {{ company.employee_range }}{% endif %}
+    <br>Generated {{ generated_at|date:"F j, Y, g:i a" }}
+  </div>
+</div>
+
+{% if narrative.headline %}
+<h2>Risk Overview</h2>
+<p style="font-size: 12pt; font-weight: 600;">{{ narrative.headline }}</p>
+{% if narrative.executive_brief %}
+<p>{{ narrative.executive_brief }}</p>
+{% endif %}
+{% endif %}
+
+<h2>Findings</h2>
+
+{# Credential Exposure #}
+{% with cred=narrative.correlated_data.credential_exposure cred_summary=narrative.findings.credential_exposure %}
+{% if cred_summary.summary or cred.total_emails_exposed > 0 or cred.total_exposed_credentials > 0 %}
+<div class="card sev-{{ cred.severity|default:'low' }}">
+  <div class="card-head">
+    <span class="card-title">Credential Exposure</span>
+    <span class="badge sev-{{ cred.severity|default:'low' }}">{{ cred.severity|default:'low' }}</span>
+  </div>
+  <p>{{ cred_summary.summary }}</p>
+  {% if cred.evidence %}
+  <p class="small">{% for e in cred.evidence %}<span class="pill">{{ e }}</span>{% endfor %}</p>
+  {% endif %}
+
+  <div class="stat-grid">
+    <div class="stat"><div class="stat-num">{{ cred.total_emails_exposed }}</div><div class="stat-label">Emails exposed</div></div>
+    <div class="stat"><div class="stat-num danger">{{ cred.confirmed_passwords }}</div><div class="stat-label">Passwords exposed</div></div>
+    <div class="stat"><div class="stat-num">{{ cred.stealer_log_hits }}</div><div class="stat-label">Stealer log hits</div></div>
+    <div class="stat"><div class="stat-num">{{ cred.breach_count }}</div><div class="stat-label">Known breaches</div></div>
+  </div>
+
+  {% if cred.breach_details %}
+  <div class="label">Breach sources</div>
+  <table class="table">
+    <thead><tr><th>Breach</th><th>Date</th><th>Records</th><th>Data classes</th></tr></thead>
+    <tbody>
+    {% for b in cred.breach_details %}
+      <tr>
+        <td>{{ b.title|default:b.name }}</td>
+        <td class="mono">{{ b.breach_date|default:'—' }}</td>
+        <td>{% if b.pwn_count %}{{ b.pwn_count|intcomma }}{% else %}—{% endif %}</td>
+        <td class="small muted">{{ b.data_classes|join:", " }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% elif cred.breach_names %}
+  <div class="label">Breach sources</div>
+  <p class="small">{% for n in cred.breach_names %}<span class="pill">{{ n }}</span>{% endfor %}</p>
+  {% endif %}
+</div>
+{% endif %}
+{% endwith %}
+
+{# Attack Surface #}
+{% with surface=narrative.correlated_data.attack_surface surface_summary=narrative.findings.attack_surface %}
+{% if surface_summary.summary or surface.exposed_ports or surface.subdomain_count > 0 %}
+<div class="card sev-{{ surface.severity|default:'low' }}">
+  <div class="card-head">
+    <span class="card-title">Attack Surface</span>
+    <span class="badge sev-{{ surface.severity|default:'low' }}">{{ surface.severity|default:'low' }}</span>
+  </div>
+  <p>{{ surface_summary.summary }}</p>
+  {% if surface.evidence %}
+  <p class="small">{% for e in surface.evidence %}<span class="pill">{{ e }}</span>{% endfor %}</p>
+  {% endif %}
+
+  {% if surface.host_ip or surface.hostnames %}
+  <div class="label">Exposed host</div>
+  <p>
+    {% if surface.host_ip %}<span class="pill pill-mono">{{ surface.host_ip }}</span>{% endif %}
+    {% for h in surface.hostnames %}<span class="pill pill-mono">{{ h }}</span>{% endfor %}
+  </p>
+  {% endif %}
+
+  {% if surface.exposed_ports %}
+  <div class="label">Open ports</div>
+  <p>
+    {% for port in surface.exposed_ports %}
+      {% with svc=surface.high_risk_services|get_item:port %}
+        {% if svc %}
+          <span class="pill pill-risk pill-mono">{{ port }} ({{ svc }})</span>
+        {% else %}
+          <span class="pill pill-mono">{{ port }}</span>
+        {% endif %}
+      {% endwith %}
+    {% endfor %}
+  </p>
+  {% endif %}
+
+  {% if surface.cves %}
+  <div class="label">Vulnerabilities</div>
+  <p>{% for cve in surface.cves %}<span class="pill pill-risk pill-mono">{{ cve }}</span>{% endfor %}</p>
+  {% endif %}
+
+  {% if surface.subdomain_count %}
+  <div class="label">{{ surface.subdomain_count }} subdomains{% if surface.subdomain_sample %} (sample){% endif %}</div>
+  <p>
+    {% for s in surface.subdomain_sample %}<span class="pill pill-mono">{{ s }}</span>{% endfor %}
+    {% if surface.subdomain_count > surface.subdomain_sample|length %}<span class="muted small">+{{ surface.subdomain_count|sub:surface.subdomain_sample|length }} more</span>{% endif %}
+  </p>
+  {% endif %}
+
+  {% if surface.missing_defenses %}
+  <div class="label">Missing defenses</div>
+  <p>{% for d in surface.missing_defenses %}<span class="pill pill-warn">{{ d }}</span>{% endfor %}</p>
+  {% endif %}
+</div>
+{% endif %}
+{% endwith %}
+
+{# Remediation #}
+{% with rem=narrative.correlated_data.remediation_priorities rem_summary=narrative.findings.remediation %}
+{% if rem_summary.summary or rem %}
+<div class="card sev-{{ rem.0.severity|default:'low' }}">
+  <div class="card-head">
+    <span class="card-title">Remediation Priorities</span>
+    <span class="muted small">{{ rem|length }} items</span>
+  </div>
+  <p>{{ rem_summary.summary }}</p>
+  {% if rem %}
+  <table class="table">
+    <thead><tr><th style="width:5%">#</th><th>Action</th><th>Evidence</th><th style="width:12%">Severity</th></tr></thead>
+    <tbody>
+    {% for item in rem %}
+      <tr>
+        <td>{{ item.priority }}</td>
+        <td>{{ item.title }}</td>
+        <td class="small muted">{{ item.evidence|join:" | " }}</td>
+        <td><span class="badge sev-{{ item.severity|default:'low' }}">{{ item.severity|default:'low' }}</span></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+{% endif %}
+{% endwith %}
+
+{% if narrative.transition %}
+<div class="transition">{{ narrative.transition }}</div>
+{% endif %}
+
+<h2>Underlying Data</h2>
+
+{# DeHashed appendix #}
+{% if dehashed %}
+<div class="appendix-source">
+  <h3>DeHashed</h3>
+  <p class="small muted">Queried {{ dehashed.queried_at|date:"F j, Y" }} · {{ dehashed.result_count }} records · {{ dehashed.unique_emails }} unique emails · {{ dehashed.breach_sources }} breach sources</p>
+  {% if dehashed.entries %}
+  <table class="table">
+    <thead><tr><th>Email</th><th>Source</th><th>Username</th><th>Password</th></tr></thead>
+    <tbody>
+    {% for e in dehashed.entries %}
+      <tr>
+        <td class="mono">{{ e.email|join:", "|default:'—' }}</td>
+        <td>{{ e.database_name|default:'—' }}</td>
+        <td class="mono">{{ e.username|join:", "|default:'—' }}</td>
+        <td>{% if e.password_exposed %}<span class="badge sev-critical">Plaintext</span>{% elif e.hash_exposed %}<span class="badge sev-warning">Hash</span>{% else %}<span class="muted">No</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+{% endif %}
+
+{# OSINT raw appendices #}
+{% for src, info in osint_raw.items %}
+<div class="appendix-source">
+  <h3>{{ src|upper }}</h3>
+  <p class="small muted">Queried {{ info.queried_at|date:"F j, Y" }}{% if info.result_count is not None %} · {{ info.result_count }} results{% endif %}</p>
+
+  {% if src == 'shodan' %}
+    {% with host=info.data.hosts.0 %}
+    {% if host %}
+      <p class="small">
+        <span class="pill pill-mono">IP {{ info.data.ip|default:host.ip_str|default:'—' }}</span>
+        {% for h in host.hostnames %}<span class="pill pill-mono">{{ h }}</span>{% endfor %}
+      </p>
+      {% if host.ports %}
+      <div class="label">Open ports</div>
+      <p>{% for p in host.ports %}<span class="pill pill-mono">{{ p }}</span>{% endfor %}</p>
+      {% endif %}
+      {% if host.vulns %}
+      <div class="label">CVEs</div>
+      <p>{% for c in host.vulns %}<span class="pill pill-risk pill-mono">{{ c }}</span>{% endfor %}</p>
+      {% endif %}
+      {% if host.cpes %}
+      <div class="label">Software (CPEs)</div>
+      <p>{% for c in host.cpes %}<span class="pill pill-mono">{{ c }}</span>{% endfor %}</p>
+      {% endif %}
+    {% else %}<p class="muted small">No exposed services detected.</p>{% endif %}
+    {% endwith %}
+
+  {% elif src == 'hibp' %}
+    {% if info.data.breaches %}
+    <table class="table">
+      <thead><tr><th>Breach</th><th>Date</th><th>Records</th><th>Data classes</th></tr></thead>
+      <tbody>
+      {% for b in info.data.breaches %}
+        <tr>
+          <td>{{ b.Title|default:b.Name }}</td>
+          <td class="mono">{{ b.BreachDate|default:'—' }}</td>
+          <td>{% if b.PwnCount %}{{ b.PwnCount|intcomma }}{% else %}—{% endif %}</td>
+          <td class="small muted">{{ b.DataClasses|join:", " }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="muted small">No known breaches.</p>{% endif %}
+
+  {% elif src == 'securitytrails' %}
+    {% with subs=info.data.subdomains %}
+    {% if subs %}
+      <div class="label">Subdomains ({{ subs|length }})</div>
+      <p>{% for s in subs %}<span class="pill pill-mono">{{ s }}</span>{% endfor %}</p>
+    {% else %}<p class="muted small">No subdomains found.</p>{% endif %}
+    {% endwith %}
+
+  {% elif src == 'builtwith' %}
+    {% with groups=info.data.groups %}
+    {% if groups %}
+    <table class="table">
+      <thead><tr><th>Group</th><th>Live count</th></tr></thead>
+      <tbody>
+      {% for g in groups %}
+        <tr><td>{{ g.name }}</td><td>{{ g.live }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="muted small">No technology data.</p>{% endif %}
+    {% endwith %}
+
+  {% elif src == 'censys' %}
+    <p class="small muted">{{ info.data.total_hosts|default:0 }} hosts · {{ info.data.total_certificates|default:0 }} certificates</p>
+
+  {% else %}
+    <p class="small muted">{{ info.result_count|default:0 }} records.</p>
+  {% endif %}
+</div>
+{% endfor %}
+
+</body>
+</html>
