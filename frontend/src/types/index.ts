@@ -42,6 +42,42 @@ export interface MetricsSources {
   sources: MetricsSourceRow[]
 }
 
+export interface PageMeta {
+  page: number
+  page_size: number
+  total: number
+  total_pages: number
+}
+
+export interface AdminUserRow {
+  id: string
+  email: string
+  full_name: string
+  date_joined: string | null
+  last_login: string | null
+  report_count: number
+  is_staff: boolean
+}
+
+export interface AdminUsersPage extends PageMeta {
+  results: AdminUserRow[]
+}
+
+export interface AdminReportRow {
+  id: string
+  domain: string | null
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  user_email: string | null
+  duration_seconds: number | null
+  error_message: string
+  created_at: string
+}
+
+export interface AdminReportsPage extends PageMeta {
+  results: AdminReportRow[]
+  status_filter: string | null
+}
+
 export interface MetricsRecentFailures {
   analyses: Array<{
     id: string
