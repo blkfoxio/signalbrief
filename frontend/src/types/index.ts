@@ -213,6 +213,7 @@ export interface Report {
   signals: SecuritySignal[]
   narrative: NarrativeOutput | null
   osint_sources: OsintSource[]
+  error_message: string
   created_at: string
 }
 

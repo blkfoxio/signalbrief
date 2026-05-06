@@ -62,7 +62,7 @@ class ReportOutputSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Analysis
-        fields = ["id", "status", "company", "signals", "narrative", "osint_sources", "created_at"]
+        fields = ["id", "status", "company", "signals", "narrative", "osint_sources", "error_message", "created_at"]
         read_only_fields = fields
 
     def get_company(self, obj):
