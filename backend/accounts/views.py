@@ -102,8 +102,23 @@ def _clear_refresh_cookie(response):
     return response
 
 
+def _maybe_promote_staff(user):
+    """Auto-promote user to is_staff if their email is in BOOTSTRAP_STAFF_EMAILS.
+
+    Idempotent — only writes when the flag is currently False.
+    """
+    bootstrap = getattr(settings, "BOOTSTRAP_STAFF_EMAILS", []) or []
+    if not bootstrap or not user.email:
+        return
+    if user.email.lower() in bootstrap and not user.is_staff:
+        user.is_staff = True
+        user.save(update_fields=["is_staff"])
+        logger.info("Auto-promoted %s to is_staff via BOOTSTRAP_STAFF_EMAILS", user.email)
+
+
 def _auth_response(user, http_status=status.HTTP_200_OK):
     """Build an auth response with access token in body and refresh token in HttpOnly cookie."""
+    _maybe_promote_staff(user)
     tokens = _get_tokens_for_user(user)
     response = Response(
         {

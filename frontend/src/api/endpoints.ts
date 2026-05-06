@@ -1,4 +1,13 @@
-import type { AuthResponse, AuditData, OsintRawData, Report, ReportInput } from '@/types'
+import type {
+  AuthResponse,
+  AuditData,
+  MetricsOverview,
+  MetricsRecentFailures,
+  MetricsSources,
+  OsintRawData,
+  Report,
+  ReportInput,
+} from '@/types'
 import client from './client'
 
 // Auth
@@ -72,6 +81,22 @@ export async function deleteReport(id: string): Promise<void> {
 
 export async function rerunReport(id: string): Promise<Report> {
   const res = await client.post<Report>(`/reports/${id}/rerun/`)
+  return res.data
+}
+
+// Admin metrics
+export async function getMetricsOverview(): Promise<MetricsOverview> {
+  const res = await client.get<MetricsOverview>('/admin/metrics/overview/')
+  return res.data
+}
+
+export async function getMetricsSources(): Promise<MetricsSources> {
+  const res = await client.get<MetricsSources>('/admin/metrics/sources/')
+  return res.data
+}
+
+export async function getMetricsRecentFailures(): Promise<MetricsRecentFailures> {
+  const res = await client.get<MetricsRecentFailures>('/admin/metrics/recent-failures/')
   return res.data
 }
 

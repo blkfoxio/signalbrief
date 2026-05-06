@@ -33,6 +33,7 @@ export function Navbar() {
             <div className="hidden sm:flex items-center gap-4">
               <NavLink to="/new">New Report</NavLink>
               <NavLink to="/">Dashboard</NavLink>
+              {user?.is_staff && <NavLink to="/admin">Admin</NavLink>}
               <span className="text-sm text-slate-400">{user?.email}</span>
               <button
                 onClick={logout}
@@ -72,6 +73,15 @@ export function Navbar() {
           >
             Dashboard
           </Link>
+          {user?.is_staff && (
+            <Link
+              to="/admin"
+              onClick={closeMenu}
+              className="block py-2.5 text-sm text-slate-700 hover:text-blue-600 no-underline"
+            >
+              Admin
+            </Link>
+          )}
           <div className="border-t border-slate-100 pt-2 mt-1">
             <span className="block text-xs text-slate-400 mb-2">{user?.email}</span>
             <button

@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "companies",
     "intelligence",
     "narratives",
+    "metrics",
 ]
 
 MIDDLEWARE = [
@@ -146,3 +147,10 @@ SHODAN_API = config("SHODAN_API", default="")
 CENSYS_API_TOKEN = config("CENSYS_API_TOKEN", default="")
 BUILTWITH_API = config("BUILTWITH_API", default="")
 HIBP_API = config("HIBP_API", default="")
+
+# Bootstrap staff access — comma-separated emails auto-promoted to is_staff on login.
+BOOTSTRAP_STAFF_EMAILS = [
+    e.strip().lower()
+    for e in config("BOOTSTRAP_STAFF_EMAILS", default="").split(",")
+    if e.strip()
+]
