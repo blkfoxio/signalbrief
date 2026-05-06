@@ -7,6 +7,7 @@ DehashedResult). No new tracking models in v1.
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
+from django.core.paginator import Paginator
 from django.db.models import Avg, Count, ExpressionWrapper, F, fields
 from django.db.models.functions import TruncDate
 from django.utils import timezone
@@ -189,5 +190,93 @@ def recent_failures(request):
                 }
                 for o in failed_osint
             ],
+        }
+    )
+
+
+def _page_meta(paginator: Paginator, page_number: int):
+    return {
+        "page": page_number,
+        "page_size": paginator.per_page,
+        "total": paginator.count,
+        "total_pages": paginator.num_pages,
+    }
+
+
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def users_list(request):
+    """Paginated user list with per-user report count."""
+    try:
+        page = max(1, int(request.GET.get("page", 1)))
+    except (TypeError, ValueError):
+        page = 1
+
+    qs = (
+        User.objects.annotate(report_count=Count("analyses"))
+        .order_by("-date_joined")
+    )
+    paginator = Paginator(qs, 25)
+    page_obj = paginator.get_page(page)
+
+    return Response(
+        {
+            "results": [
+                {
+                    "id": str(u.id),
+                    "email": u.email,
+                    "full_name": (f"{u.first_name} {u.last_name}").strip(),
+                    "date_joined": u.date_joined.isoformat() if u.date_joined else None,
+                    "last_login": u.last_login.isoformat() if u.last_login else None,
+                    "report_count": u.report_count,
+                    "is_staff": u.is_staff,
+                }
+                for u in page_obj.object_list
+            ],
+            **_page_meta(paginator, page_obj.number),
+        }
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def reports_list(request):
+    """Paginated analysis list, optionally filtered by status."""
+    try:
+        page = max(1, int(request.GET.get("page", 1)))
+    except (TypeError, ValueError):
+        page = 1
+    status_filter = request.GET.get("status")
+
+    qs = Analysis.objects.select_related("company", "created_by").order_by("-created_at")
+    valid_statuses = {choice for choice, _ in Analysis.Status.choices}
+    if status_filter in valid_statuses:
+        qs = qs.filter(status=status_filter)
+
+    paginator = Paginator(qs, 25)
+    page_obj = paginator.get_page(page)
+
+    rows = []
+    for a in page_obj.object_list:
+        duration = None
+        if a.status == Analysis.Status.COMPLETED and a.updated_at and a.created_at:
+            duration = (a.updated_at - a.created_at).total_seconds()
+        rows.append(
+            {
+                "id": str(a.id),
+                "domain": a.company.domain if a.company_id else None,
+                "status": a.status,
+                "user_email": a.created_by.email if a.created_by_id else None,
+                "duration_seconds": duration,
+                "error_message": a.error_message,
+                "created_at": a.created_at.isoformat(),
+            }
+        )
+
+    return Response(
+        {
+            "results": rows,
+            "status_filter": status_filter if status_filter in valid_statuses else None,
+            **_page_meta(paginator, page_obj.number),
         }
     )

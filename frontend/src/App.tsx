@@ -9,6 +9,8 @@ import { DashboardPage } from '@/pages/DashboardPage'
 import { NewReportPage } from '@/pages/NewReportPage'
 import { ReportPage } from '@/pages/ReportPage'
 import { AdminPage } from '@/pages/AdminPage'
+import { AdminUsersPage } from '@/pages/AdminUsersPage'
+import { AdminReportsPage } from '@/pages/AdminReportsPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 
 export default function App() {
@@ -23,6 +25,8 @@ export default function App() {
             <Route path="/new" element={<NewReportPage />} />
             <Route path="/reports/:id" element={<ReportPage />} />
             <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
+            <Route path="/admin/users" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
+            <Route path="/admin/reports" element={<AdminRoute><AdminReportsPage /></AdminRoute>} />
           </Route>
           <Route path="*" element={<NotFoundPage />} />
         </Routes>

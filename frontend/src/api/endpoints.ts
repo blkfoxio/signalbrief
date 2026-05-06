@@ -1,4 +1,6 @@
 import type {
+  AdminReportsPage,
+  AdminUsersPage,
   AuthResponse,
   AuditData,
   MetricsOverview,
@@ -97,6 +99,18 @@ export async function getMetricsSources(): Promise<MetricsSources> {
 
 export async function getMetricsRecentFailures(): Promise<MetricsRecentFailures> {
   const res = await client.get<MetricsRecentFailures>('/admin/metrics/recent-failures/')
+  return res.data
+}
+
+export async function getAdminUsers(page = 1): Promise<AdminUsersPage> {
+  const res = await client.get<AdminUsersPage>('/admin/metrics/users/', { params: { page } })
+  return res.data
+}
+
+export async function getAdminReports(page = 1, status?: string): Promise<AdminReportsPage> {
+  const params: Record<string, string | number> = { page }
+  if (status) params.status = status
+  const res = await client.get<AdminReportsPage>('/admin/metrics/reports/', { params })
   return res.data
 }
 

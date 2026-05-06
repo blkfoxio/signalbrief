@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { AlertTriangle, Users, FileText, Activity, Clock } from 'lucide-react'
 import {
   getMetricsOverview,
@@ -76,24 +77,33 @@ export function AdminPage() {
   }
   if (!overview || !sources || !failures) return null
 
-  const kpis = [
+  const kpis: Array<{
+    label: string
+    value: string
+    sub: string
+    icon: typeof Users
+    to?: string
+  }> = [
     {
       label: 'Total users',
       value: overview.users.total.toLocaleString(),
       sub: `+${overview.users.last_7d} in last 7d`,
       icon: Users,
+      to: '/admin/users',
     },
     {
       label: 'Reports (7d)',
       value: overview.reports.last_7d.toLocaleString(),
       sub: `${overview.reports.total.toLocaleString()} all-time`,
       icon: FileText,
+      to: '/admin/reports',
     },
     {
       label: 'Pipeline success (30d)',
       value: formatPct(overview.reports.success_rate_30d),
       sub: `${overview.reports.by_status.failed || 0} failed / ${overview.reports.by_status.completed || 0} completed`,
       icon: Activity,
+      to: '/admin/reports?status=failed',
     },
     {
       label: 'Avg duration (30d)',
@@ -116,14 +126,27 @@ export function AdminPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {kpis.map((k) => {
           const Icon = k.icon
-          return (
-            <div key={k.label} className="bg-white rounded-lg border border-slate-200 p-4">
+          const inner = (
+            <>
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs text-slate-500">{k.label}</span>
                 <Icon className="w-4 h-4 text-slate-400" />
               </div>
               <div className="text-2xl font-semibold text-slate-900">{k.value}</div>
               <div className="text-xs text-slate-500 mt-1">{k.sub}</div>
+            </>
+          )
+          return k.to ? (
+            <Link
+              key={k.label}
+              to={k.to}
+              className="bg-white rounded-lg border border-slate-200 p-4 hover:border-blue-300 hover:shadow-sm transition no-underline text-current"
+            >
+              {inner}
+            </Link>
+          ) : (
+            <div key={k.label} className="bg-white rounded-lg border border-slate-200 p-4">
+              {inner}
             </div>
           )
         })}
@@ -203,13 +226,15 @@ export function AdminPage() {
           ) : (
             <ul className="divide-y divide-slate-100">
               {failures.analyses.map((a) => (
-                <li key={a.id} className="px-4 py-3">
-                  <div className="flex justify-between items-baseline gap-2">
-                    <span className="text-sm font-medium text-slate-700">{a.domain || '—'}</span>
-                    <span className="text-xs text-slate-400">{new Date(a.created_at).toLocaleString()}</span>
-                  </div>
-                  {a.user_email && <div className="text-xs text-slate-500">{a.user_email}</div>}
-                  {a.error_message && <div className="text-xs text-red-600 mt-1">{a.error_message}</div>}
+                <li key={a.id}>
+                  <Link to={`/reports/${a.id}`} className="block px-4 py-3 hover:bg-slate-50 no-underline text-current">
+                    <div className="flex justify-between items-baseline gap-2">
+                      <span className="text-sm font-medium text-blue-600">{a.domain || '—'}</span>
+                      <span className="text-xs text-slate-400">{new Date(a.created_at).toLocaleString()}</span>
+                    </div>
+                    {a.user_email && <div className="text-xs text-slate-500">{a.user_email}</div>}
+                    {a.error_message && <div className="text-xs text-red-600 mt-1">{a.error_message}</div>}
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -226,14 +251,19 @@ export function AdminPage() {
           ) : (
             <ul className="divide-y divide-slate-100">
               {failures.osint_calls.map((o, i) => (
-                <li key={`${o.analysis_id}-${o.source}-${i}`} className="px-4 py-3">
-                  <div className="flex justify-between items-baseline gap-2">
-                    <span className="text-sm font-medium text-slate-700">
-                      {o.source} <span className="text-slate-400 font-normal">· {o.domain || o.query_value}</span>
-                    </span>
-                    <span className="text-xs text-slate-400">{new Date(o.queried_at).toLocaleString()}</span>
-                  </div>
-                  <div className="text-xs text-red-600 mt-1">{o.error_message}</div>
+                <li key={`${o.analysis_id}-${o.source}-${i}`}>
+                  <Link
+                    to={`/reports/${o.analysis_id}`}
+                    className="block px-4 py-3 hover:bg-slate-50 no-underline text-current"
+                  >
+                    <div className="flex justify-between items-baseline gap-2">
+                      <span className="text-sm font-medium text-slate-700">
+                        {o.source} <span className="text-slate-400 font-normal">· {o.domain || o.query_value}</span>
+                      </span>
+                      <span className="text-xs text-slate-400">{new Date(o.queried_at).toLocaleString()}</span>
+                    </div>
+                    <div className="text-xs text-red-600 mt-1">{o.error_message}</div>
+                  </Link>
                 </li>
               ))}
             </ul>
