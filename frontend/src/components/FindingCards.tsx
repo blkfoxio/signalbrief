@@ -243,7 +243,38 @@ function AttackSurfaceCard({ finding, data }: {
             </div>
           )}
 
-          {data.exposed_ports?.length > 0 && (
+          {data.port_context && data.port_context.length > 0 ? (
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Open ports</p>
+              <div className="space-y-1.5">
+                {data.port_context.map(p => {
+                  const isRisk = p.risk_level === 'critical' || p.risk_level === 'high'
+                  const isMedium = p.risk_level === 'medium'
+                  const isExpected = p.risk_level === 'expected'
+                  return (
+                    <div key={p.port} className="flex items-start gap-2">
+                      <span className={cn(
+                        'px-2 py-0.5 text-xs font-mono rounded shrink-0',
+                        isRisk && 'bg-red-100 text-red-700',
+                        isMedium && 'bg-orange-50 text-orange-700',
+                        isExpected && 'bg-green-50 text-green-700',
+                        !isRisk && !isMedium && !isExpected && 'bg-white text-slate-700 border border-slate-200',
+                      )}>
+                        {p.port}{p.service ? ` (${p.service})` : ''}
+                      </span>
+                      {p.risk_note ? (
+                        <span className="text-xs text-orange-700 leading-snug">{p.risk_note}</span>
+                      ) : p.blurb ? (
+                        <span className="text-xs text-slate-500 leading-snug">
+                          {p.blurb}{isExpected && ' — no action required'}
+                        </span>
+                      ) : null}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ) : data.exposed_ports?.length > 0 && (
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Open ports</p>
               <div className="flex flex-wrap gap-1.5">

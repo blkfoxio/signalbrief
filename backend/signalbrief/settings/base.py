@@ -72,7 +72,9 @@ AUTH_USER_MODEL = "accounts.User"
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+    },
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
@@ -134,10 +136,14 @@ OPENAI_MODEL = config("OPENAI_MODEL", default="gpt-4o")
 MS_AZURE_CLIENT_ID = config("MS_AZURE_CLIENT_ID", default="")
 MS_AZURE_SECRET = config("MS_AZURE_SECRET", default="")
 MS_AZURE_TENANT_ID = config("MS_AZURE_TENANT_ID", default="common")
-MS_AZURE_REDIRECT_URI = config("MS_AZURE_REDIRECT_URI", default="http://localhost:5173/auth/callback")
+MS_AZURE_REDIRECT_URI = config(
+    "MS_AZURE_REDIRECT_URI", default="http://localhost:5173/auth/callback"
+)
 GOOGLE_CLIENT_ID = config("GOOGLE_CLIENT_ID", default="")
 GOOGLE_CLIENT_SECRET = config("GOOGLE_CLIENT_SECRET", default="")
-GOOGLE_REDIRECT_URI = config("GOOGLE_REDIRECT_URI", default="http://localhost:5173/auth/callback")
+GOOGLE_REDIRECT_URI = config(
+    "GOOGLE_REDIRECT_URI", default="http://localhost:5173/auth/callback"
+)
 PROXYCURL_API = config("PROXYCURL_API", default="")
 
 # OSINT data sources
@@ -147,6 +153,20 @@ SHODAN_API = config("SHODAN_API", default="")
 CENSYS_API_TOKEN = config("CENSYS_API_TOKEN", default="")
 BUILTWITH_API = config("BUILTWITH_API", default="")
 HIBP_API = config("HIBP_API", default="")
+
+# Report disclaimer — shown on the PDF cover and in the running footer. Tunable
+# without a code change so legal can adjust copy.
+REPORT_DISCLAIMER = config(
+    "REPORT_DISCLAIMER",
+    default=(
+        "This report is a point-in-time depiction based on publicly available information (OSINT) "
+        "and third-party breach/exposure databases. Findings are indicators, not confirmations of "
+        "compromise, regulatory violation, or active threat. Data accuracy depends on upstream "
+        "sources and may include stale or false-positive entries. This report is provided for "
+        "security-awareness and is not a substitute for an authorized assessment, penetration test, "
+        "or compliance audit."
+    ),
+)
 
 # Bootstrap staff access — comma-separated emails auto-promoted to is_staff on login.
 BOOTSTRAP_STAFF_EMAILS = [

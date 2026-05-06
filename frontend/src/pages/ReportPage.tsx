@@ -5,6 +5,8 @@ import { useReport } from '@/hooks/useReport'
 import { CompanySnapshot } from '@/components/CompanySnapshot'
 import { RiskOverview } from '@/components/RiskOverview'
 import { FindingCards } from '@/components/FindingCards'
+import { RecommendationsCard } from '@/components/RecommendationsCard'
+import { Disclaimer } from '@/components/Disclaimer'
 import { AuditPanel } from '@/components/AuditPanel'
 import { LoadingState } from '@/components/LoadingState'
 import { downloadReportPdf } from '@/api/endpoints'
@@ -134,9 +136,11 @@ export function ReportPage() {
         </div>
       </div>
 
+      {currentReport.disclaimer && <Disclaimer text={currentReport.disclaimer} />}
+
       <CompanySnapshot company={currentReport.company} />
 
-      {/* Headline + Executive Brief */}
+      {/* Headline + Executive Summary */}
       {currentReport.narrative && (
         <RiskOverview
           narrative={currentReport.narrative}
@@ -147,6 +151,11 @@ export function ReportPage() {
       {/* 3 Correlated Finding Cards */}
       {currentReport.narrative && (
         <FindingCards narrative={currentReport.narrative} />
+      )}
+
+      {/* Service-bucket recommendations (XDR / EDR / VSS / ES) */}
+      {currentReport.narrative?.recommendations && currentReport.narrative.recommendations.length > 0 && (
+        <RecommendationsCard recommendations={currentReport.narrative.recommendations} />
       )}
 
       {/* Transition to solution */}

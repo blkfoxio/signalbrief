@@ -142,6 +142,34 @@ export interface RemediationItem {
   sources: string[]
 }
 
+export type Posture = 'low' | 'moderate' | 'elevated' | 'high'
+export type RiskLevel = 'expected' | 'low' | 'medium' | 'high' | 'critical' | 'unknown'
+export type RecommendationPriority = 'medium' | 'high' | 'critical'
+export type RecommendationCode = 'XDR' | 'EDR' | 'VSS' | 'ES'
+
+export interface PortContext {
+  port: number
+  service: string
+  risk_level: RiskLevel
+  blurb: string
+  risk_note: string
+}
+
+export interface Recommendation {
+  code: RecommendationCode
+  name: string
+  tagline: string
+  priority: RecommendationPriority
+  triggers: string[]
+  rationale: string
+}
+
+export interface ExecutiveSummary {
+  key_risks: string[]
+  business_impact: string
+  top_actions: string[]
+}
+
 export interface CorrelatedFindings {
   credential_exposure: {
     severity: string
@@ -164,6 +192,7 @@ export interface CorrelatedFindings {
     host_ip?: string
     hostnames?: string[]
     exposed_ports: number[]
+    port_context?: PortContext[]
     high_risk_services: Record<string, string>
     cves: string[]
     subdomain_count: number
@@ -176,16 +205,19 @@ export interface CorrelatedFindings {
     sources: string[]
   }
   remediation_priorities: RemediationItem[]
+  posture?: Posture
 }
 
 export interface NarrativeOutput {
   headline: string
   executive_brief: string
+  executive_summary?: ExecutiveSummary
   findings: {
     credential_exposure: FindingSummary
     attack_surface: FindingSummary
     remediation: FindingSummary
   }
+  recommendations?: Recommendation[]
   correlated_data: CorrelatedFindings
   transition: string
 }
@@ -213,6 +245,7 @@ export interface Report {
   signals: SecuritySignal[]
   narrative: NarrativeOutput | null
   osint_sources: OsintSource[]
+  disclaimer?: string
   error_message: string
   created_at: string
 }
