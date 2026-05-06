@@ -5,6 +5,59 @@ export interface User {
   first_name: string
   last_name: string
   avatar_url: string
+  is_staff: boolean
+}
+
+export interface MetricsOverview {
+  generated_at: string
+  users: {
+    total: number
+    last_7d: number
+    last_30d: number
+    active_7d: number
+  }
+  reports: {
+    total: number
+    last_7d: number
+    last_30d: number
+    by_status: Record<string, number>
+    success_rate_30d: number | null
+    avg_duration_seconds_30d: number | null
+  }
+  daily_reports_30d: Array<{ date: string; count: number }>
+  daily_signups_30d: Array<{ date: string; count: number }>
+}
+
+export interface MetricsSourceRow {
+  source: string
+  label: string
+  total_calls_30d: number
+  error_count_30d: number
+  success_rate: number | null
+  last_error_at: string | null
+  last_error_message: string | null
+}
+
+export interface MetricsSources {
+  sources: MetricsSourceRow[]
+}
+
+export interface MetricsRecentFailures {
+  analyses: Array<{
+    id: string
+    domain: string | null
+    error_message: string
+    created_at: string
+    user_email: string | null
+  }>
+  osint_calls: Array<{
+    analysis_id: string
+    domain: string | null
+    source: string
+    query_value: string
+    error_message: string
+    queried_at: string
+  }>
 }
 
 export interface AuthResponse {
