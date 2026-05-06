@@ -11,6 +11,7 @@ from django.core.paginator import Paginator
 from django.db.models import Avg, Count, ExpressionWrapper, F, fields
 from django.db.models.functions import TruncDate
 from django.utils import timezone
+from rest_framework import status as http_status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
@@ -236,6 +237,32 @@ def users_list(request):
             **_page_meta(paginator, page_obj.number),
         }
     )
+
+
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
+def set_user_staff(request, user_id: int):
+    """Set is_staff on another user. Body: {"is_staff": true|false}."""
+    desired = request.data.get("is_staff")
+    if not isinstance(desired, bool):
+        return Response({"error": "is_staff must be boolean"}, status=http_status.HTTP_400_BAD_REQUEST)
+
+    if request.user.id == user_id and not desired:
+        return Response(
+            {"error": "You cannot demote yourself."}, status=http_status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        target = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        return Response({"error": "User not found"}, status=http_status.HTTP_404_NOT_FOUND)
+
+    if target.is_staff == desired:
+        return Response({"id": str(target.id), "is_staff": target.is_staff})
+
+    target.is_staff = desired
+    target.save(update_fields=["is_staff"])
+    return Response({"id": str(target.id), "is_staff": target.is_staff})
 
 
 @api_view(["GET"])

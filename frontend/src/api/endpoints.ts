@@ -107,6 +107,14 @@ export async function getAdminUsers(page = 1): Promise<AdminUsersPage> {
   return res.data
 }
 
+export async function setUserStaff(userId: string, isStaff: boolean): Promise<{ id: string; is_staff: boolean }> {
+  const res = await client.post<{ id: string; is_staff: boolean }>(
+    `/admin/metrics/users/${userId}/staff/`,
+    { is_staff: isStaff },
+  )
+  return res.data
+}
+
 export async function getAdminReports(page = 1, status?: string): Promise<AdminReportsPage> {
   const params: Record<string, string | number> = { page }
   if (status) params.status = status
