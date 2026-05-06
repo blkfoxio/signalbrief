@@ -40,6 +40,8 @@ export function useReport() {
 
   const fetchReport = useCallback(async (id: string) => {
     setIsLoading(true)
+    setError(null)
+    setCurrentReport(null)
     try {
       const data = await getReport(id)
       setCurrentReport(data)

@@ -12,7 +12,7 @@ import { downloadReportPdf } from '@/api/endpoints'
 export function ReportPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { currentReport, auditData, isLoading, fetchReport, fetchAuditData, rerunReport, removeReport } = useReport()
+  const { currentReport, auditData, isLoading, error, fetchReport, fetchAuditData, rerunReport, removeReport } = useReport()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
@@ -60,8 +60,23 @@ export function ReportPage() {
     }
   }
 
-  if (isLoading || !currentReport) {
+  if (isLoading) {
     return <LoadingState />
+  }
+
+  if (error || !currentReport) {
+    return (
+      <div className="space-y-4">
+        <Link to="/" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-blue-600 no-underline">
+          <ArrowLeft className="w-4 h-4" />
+          Back to reports
+        </Link>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-sm font-medium text-red-700">Could not load report</p>
+          <p className="text-xs text-red-600 mt-1">{error || 'Report not found.'}</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -142,10 +157,17 @@ export function ReportPage() {
       )}
 
       {currentReport.status === 'failed' && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4">
-          <p className="text-sm text-red-700">
-            Analysis failed. The structured findings above may still be useful.
-          </p>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4 space-y-1">
+          <p className="text-sm font-medium text-red-700">Analysis failed</p>
+          {currentReport.error_message ? (
+            <p className="text-xs text-red-700 font-mono whitespace-pre-wrap break-words">
+              {currentReport.error_message}
+            </p>
+          ) : (
+            <p className="text-xs text-red-600">
+              No error details recorded. The structured findings above may still be useful.
+            </p>
+          )}
         </div>
       )}
 

@@ -38,6 +38,14 @@ class ReportGenerationThrottle(UserRateThrottle):
     rate = "10/hour"
 
 
+def _analysis_queryset(request):
+    """Staff users can access any report; everyone else only their own."""
+    qs = Analysis.objects.all()
+    if not request.user.is_staff:
+        qs = qs.filter(created_by=request.user)
+    return qs
+
+
 @api_view(["GET", "POST"])
 @throttle_classes([ReportGenerationThrottle])
 def report_list_create(request):
@@ -55,9 +63,10 @@ def report_detail(request, report_id):
     """Get or delete a single report."""
     try:
         analysis = (
-            Analysis.objects.select_related("company", "company__enrichment")
+            _analysis_queryset(request)
+            .select_related("company", "company__enrichment")
             .prefetch_related("signals", "narrative", "osint_results")
-            .get(id=report_id, created_by=request.user)
+            .get(id=report_id)
         )
     except Analysis.DoesNotExist:
         return Response({"error": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -73,8 +82,10 @@ def report_detail(request, report_id):
 def report_audit(request, report_id):
     """Get raw DeHashed data for audit mode (masked)."""
     try:
-        analysis = Analysis.objects.select_related("dehashed_result").get(
-            id=report_id, created_by=request.user
+        analysis = (
+            _analysis_queryset(request)
+            .select_related("dehashed_result")
+            .get(id=report_id)
         )
     except Analysis.DoesNotExist:
         return Response({"error": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -94,7 +105,7 @@ def report_osint_raw(request, report_id, source):
         return Response({"error": "Invalid source"}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        analysis = Analysis.objects.get(id=report_id, created_by=request.user)
+        analysis = _analysis_queryset(request).get(id=report_id)
     except Analysis.DoesNotExist:
         return Response({"error": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -117,9 +128,10 @@ def report_export_pdf(request, report_id):
     """Render the report as a downloadable PDF."""
     try:
         analysis = (
-            Analysis.objects.select_related("company", "company__enrichment", "dehashed_result")
+            _analysis_queryset(request)
+            .select_related("company", "company__enrichment", "dehashed_result")
             .prefetch_related("osint_results", "narrative")
-            .get(id=report_id, created_by=request.user)
+            .get(id=report_id)
         )
     except Analysis.DoesNotExist:
         return Response({"error": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -146,8 +158,10 @@ def report_export_pdf(request, report_id):
 def report_rerun(request, report_id):
     """Rerun analysis for the same company — creates a new report."""
     try:
-        original = Analysis.objects.select_related("company").get(
-            id=report_id, created_by=request.user
+        original = (
+            _analysis_queryset(request)
+            .select_related("company")
+            .get(id=report_id)
         )
     except Analysis.DoesNotExist:
         return Response({"error": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
