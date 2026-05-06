@@ -38,6 +38,17 @@ class ReportGenerationThrottle(UserRateThrottle):
     rate = "10/hour"
 
 
+def _strip_null_bytes(value):
+    """Postgres jsonb cannot store \\u0000 — recursively strip NULs from strings."""
+    if isinstance(value, str):
+        return value.replace("\x00", "") if "\x00" in value else value
+    if isinstance(value, dict):
+        return {k: _strip_null_bytes(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_strip_null_bytes(v) for v in value]
+    return value
+
+
 def _analysis_queryset(request):
     """Staff users can access any report; everyone else only their own."""
     qs = Analysis.objects.all()
@@ -274,7 +285,7 @@ def _run_pipeline(request, company):
 
         DehashedResult.objects.create(
             analysis=analysis,
-            raw_response=dehashed_response,
+            raw_response=_strip_null_bytes(dehashed_response),
             query_domain=company.domain,
             query_email=company.contact_email,
             result_count=dehashed_response.get("total", len(entries)),
@@ -301,7 +312,7 @@ def _run_pipeline(request, company):
                 OsintResult.objects.create(
                     analysis=analysis,
                     source=source_name,
-                    raw_response=source_data,
+                    raw_response=_strip_null_bytes(source_data),
                     result_count=result_count,
                     query_value=company.domain,
                     error_message=source_data.get("error", ""),
