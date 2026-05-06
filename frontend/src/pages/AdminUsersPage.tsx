@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, ChevronLeft, ChevronRight, ShieldCheck } from 'lucide-react'
-import { getAdminUsers } from '@/api/endpoints'
+import { getAdminUsers, setUserStaff } from '@/api/endpoints'
+import { useAuth } from '@/hooks/useAuth'
 import type { AdminUsersPage as Page } from '@/types'
 
 function formatDate(iso: string | null): string {
@@ -10,10 +11,12 @@ function formatDate(iso: string | null): string {
 }
 
 export function AdminUsersPage() {
+  const { user: currentUser } = useAuth()
   const [page, setPage] = useState(1)
   const [data, setData] = useState<Page | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [pendingId, setPendingId] = useState<string | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -26,6 +29,26 @@ export function AdminUsersPage() {
       mounted = false
     }
   }, [page])
+
+  const handleToggleStaff = async (userId: string, nextValue: boolean) => {
+    setPendingId(userId)
+    try {
+      await setUserStaff(userId, nextValue)
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              results: prev.results.map((u) => (u.id === userId ? { ...u, is_staff: nextValue } : u)),
+            }
+          : prev,
+      )
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Update failed'
+      window.alert(msg)
+    } finally {
+      setPendingId(null)
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -56,33 +79,60 @@ export function AdminUsersPage() {
                   <th className="text-left px-4 py-2 font-medium">Last login</th>
                   <th className="text-right px-4 py-2 font-medium">Reports</th>
                   <th className="text-left px-4 py-2 font-medium">Role</th>
+                  <th className="text-right px-4 py-2 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {data.results.length === 0 ? (
                   <tr>
-                    <td className="px-4 py-6 text-sm text-slate-400" colSpan={6}>No users.</td>
+                    <td className="px-4 py-6 text-sm text-slate-400" colSpan={7}>No users.</td>
                   </tr>
                 ) : (
-                  data.results.map((u) => (
-                    <tr key={u.id} className="border-t border-slate-100">
-                      <td className="px-4 py-2 font-medium text-slate-700">{u.email}</td>
-                      <td className="px-4 py-2 text-slate-600">{u.full_name || '—'}</td>
-                      <td className="px-4 py-2 text-slate-500 text-xs">{formatDate(u.date_joined)}</td>
-                      <td className="px-4 py-2 text-slate-500 text-xs">{formatDate(u.last_login)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums text-slate-700">{u.report_count}</td>
-                      <td className="px-4 py-2">
-                        {u.is_staff ? (
-                          <span className="inline-flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-                            <ShieldCheck className="w-3 h-3" />
-                            Staff
-                          </span>
-                        ) : (
-                          <span className="text-xs text-slate-400">User</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
+                  data.results.map((u) => {
+                    const isSelf = currentUser?.id === u.id
+                    const isPending = pendingId === u.id
+                    return (
+                      <tr key={u.id} className="border-t border-slate-100">
+                        <td className="px-4 py-2 font-medium text-slate-700">{u.email}</td>
+                        <td className="px-4 py-2 text-slate-600">{u.full_name || '—'}</td>
+                        <td className="px-4 py-2 text-slate-500 text-xs">{formatDate(u.date_joined)}</td>
+                        <td className="px-4 py-2 text-slate-500 text-xs">{formatDate(u.last_login)}</td>
+                        <td className="px-4 py-2 text-right tabular-nums text-slate-700">{u.report_count}</td>
+                        <td className="px-4 py-2">
+                          {u.is_staff ? (
+                            <span className="inline-flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                              <ShieldCheck className="w-3 h-3" />
+                              Staff
+                            </span>
+                          ) : (
+                            <span className="text-xs text-slate-400">User</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2 text-right">
+                          <button
+                            onClick={() => {
+                              const next = !u.is_staff
+                              const verb = next ? 'promote' : 'demote'
+                              if (window.confirm(`${verb.charAt(0).toUpperCase() + verb.slice(1)} ${u.email}?`)) {
+                                handleToggleStaff(u.id, next)
+                              }
+                            }}
+                            disabled={isSelf || isPending}
+                            title={isSelf ? "You can't change your own role" : ''}
+                            className={`text-xs px-2 py-1 rounded border transition ${
+                              isSelf || isPending
+                                ? 'border-slate-200 text-slate-300 cursor-not-allowed'
+                                : u.is_staff
+                                ? 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                                : 'border-blue-200 text-blue-600 hover:bg-blue-50'
+                            }`}
+                          >
+                            {isPending ? '…' : u.is_staff ? 'Demote' : 'Promote'}
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })
                 )}
               </tbody>
             </table>
