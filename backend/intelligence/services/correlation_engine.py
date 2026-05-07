@@ -5,21 +5,135 @@ This is the "secret sauce": normalize + correlate + score across sources,
 then hand pre-structured data to OpenAI for narrative generation.
 """
 
-# High-risk ports that warrant immediate remediation
-HIGH_RISK_PORTS = {
-    21: "FTP",
-    22: "SSH",
-    23: "Telnet",
-    25: "SMTP",
-    445: "SMB",
-    1433: "MSSQL",
-    3306: "MySQL",
-    3389: "RDP",
-    5432: "PostgreSQL",
-    5900: "VNC",
-    6379: "Redis",
-    27017: "MongoDB",
+# Per-port context. risk_level is one of: expected, low, medium, high, critical.
+# Ports tagged "expected" are normal web traffic and should not raise alarms.
+PORT_CONTEXT = {
+    21: {
+        "service": "FTP",
+        "risk_level": "high",
+        "blurb": "File Transfer Protocol",
+        "risk_note": "FTP transmits credentials in cleartext and is rarely needed externally; replace with SFTP or remove from the public internet.",
+    },
+    22: {
+        "service": "SSH",
+        "risk_level": "high",
+        "blurb": "Remote shell access",
+        "risk_note": "SSH exposed to the public internet invites credential-stuffing and brute-force; restrict by source IP, require key auth, or place behind a VPN.",
+    },
+    23: {
+        "service": "Telnet",
+        "risk_level": "critical",
+        "blurb": "Legacy remote shell",
+        "risk_note": "Telnet sends credentials in plaintext; there is no acceptable reason for it to be reachable from the internet.",
+    },
+    25: {
+        "service": "SMTP",
+        "risk_level": "medium",
+        "blurb": "Mail transfer",
+        "risk_note": "Public SMTP is expected for receiving mail servers, but open relays or unauthenticated submission ports get abused for spoofing and spam.",
+    },
+    80: {
+        "service": "HTTP",
+        "risk_level": "expected",
+        "blurb": "Standard web traffic",
+        "risk_note": "",
+    },
+    443: {
+        "service": "HTTPS",
+        "risk_level": "expected",
+        "blurb": "Standard secure web traffic",
+        "risk_note": "",
+    },
+    445: {
+        "service": "SMB",
+        "risk_level": "critical",
+        "blurb": "Windows file sharing",
+        "risk_note": "SMB on the public internet has been the entry point for major ransomware families (WannaCry, NotPetya). Should never be internet-reachable.",
+    },
+    1433: {
+        "service": "MSSQL",
+        "risk_level": "high",
+        "blurb": "Microsoft SQL Server",
+        "risk_note": "Direct database exposure dramatically expands the attack surface; databases should sit behind an application tier, not on the public internet.",
+    },
+    3306: {
+        "service": "MySQL",
+        "risk_level": "high",
+        "blurb": "MySQL database",
+        "risk_note": "Direct database exposure dramatically expands the attack surface; databases should sit behind an application tier, not on the public internet.",
+    },
+    3389: {
+        "service": "RDP",
+        "risk_level": "critical",
+        "blurb": "Remote Desktop",
+        "risk_note": "Public RDP enables credential-stuffing and brute-force at scale, and is one of the most common ransomware entry points; place behind a VPN or zero-trust gateway.",
+    },
+    5432: {
+        "service": "PostgreSQL",
+        "risk_level": "high",
+        "blurb": "PostgreSQL database",
+        "risk_note": "Direct database exposure dramatically expands the attack surface; databases should sit behind an application tier, not on the public internet.",
+    },
+    5900: {
+        "service": "VNC",
+        "risk_level": "critical",
+        "blurb": "Remote desktop (VNC)",
+        "risk_note": "VNC is frequently deployed without strong authentication and is heavily scanned for; should not be reachable from the internet.",
+    },
+    6379: {
+        "service": "Redis",
+        "risk_level": "high",
+        "blurb": "Redis data store",
+        "risk_note": "Redis ships with no authentication by default and has been exploited at scale when reachable externally.",
+    },
+    27017: {
+        "service": "MongoDB",
+        "risk_level": "high",
+        "blurb": "MongoDB database",
+        "risk_note": "Open MongoDB instances have been the source of mass-exposure incidents; databases should not be internet-reachable.",
+    },
 }
+
+# Backward-compatible view used by remediation logic and existing callers.
+HIGH_RISK_PORTS = {
+    port: ctx["service"]
+    for port, ctx in PORT_CONTEXT.items()
+    if ctx["risk_level"] in ("high", "critical")
+}
+
+# Severity ordering for posture computation.
+_SEVERITY_RANK = {"low": 0, "medium": 1, "high": 2, "critical": 3}
+_POSTURE_BY_RANK = {0: "low", 1: "moderate", 2: "elevated", 3: "high"}
+
+
+def _compute_posture(*severities: str) -> str:
+    """Map the worst severity across findings to an executive posture label."""
+    ranks = [_SEVERITY_RANK.get(s, 0) for s in severities if s]
+    return _POSTURE_BY_RANK[max(ranks)] if ranks else "low"
+
+
+def _build_port_context(ports: list[int]) -> list[dict]:
+    """Return per-port context for rendering and for the LLM prompt."""
+    out = []
+    for p in ports:
+        ctx = PORT_CONTEXT.get(p)
+        if ctx:
+            out.append({
+                "port": p,
+                "service": ctx["service"],
+                "risk_level": ctx["risk_level"],
+                "blurb": ctx["blurb"],
+                "risk_note": ctx["risk_note"],
+            })
+        else:
+            out.append({
+                "port": p,
+                "service": "",
+                "risk_level": "unknown",
+                "blurb": "",
+                "risk_note": "",
+            })
+    return out
 
 
 def correlate_findings(signals: list[dict], osint_results: dict) -> dict:
@@ -40,10 +154,13 @@ def correlate_findings(signals: list[dict], osint_results: dict) -> dict:
     surface = _build_attack_surface(signals, osint_results)
     remediation = _build_remediation_priorities(cred, surface, signals)
 
+    posture = _compute_posture(cred["severity"], surface["severity"])
+
     return {
         "credential_exposure": cred,
         "attack_surface": surface,
         "remediation_priorities": remediation,
+        "posture": posture,
     }
 
 
@@ -244,11 +361,14 @@ def _build_attack_surface(signals: list[dict], osint_results: dict) -> dict:
     if censys_svc:
         sources.add("censys")
 
+    sorted_ports = sorted(all_ports)
+
     return {
         "severity": severity,
         "host_ip": host_ip,
         "hostnames": hostnames,
-        "exposed_ports": sorted(all_ports),
+        "exposed_ports": sorted_ports,
+        "port_context": _build_port_context(sorted_ports),
         "high_risk_services": high_risk_found,
         "cves": cves,
         "subdomain_count": subdomain_count,

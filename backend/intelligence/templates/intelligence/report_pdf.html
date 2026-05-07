@@ -8,8 +8,8 @@
     size: Letter;
     margin: 0.75in 0.75in 1in 0.75in;
     @bottom-left {
-      content: "SignalBrief — {{ company.domain }}";
-      font-size: 9pt;
+      content: "SignalBrief — {{ company.domain }} · OSINT-derived, point-in-time depiction";
+      font-size: 8pt;
       color: #64748b;
     }
     @bottom-right {
@@ -79,6 +79,40 @@
   .small { font-size: 8.5pt; }
   .transition { background: #eff6ff; border: 0.5pt solid #bfdbfe; color: #1e40af; padding: 8pt 10pt; border-radius: 3pt; font-style: italic; margin: 10pt 0; }
   .appendix-source { page-break-inside: avoid; margin-bottom: 14pt; }
+
+  .disclaimer {
+    background: #fffbeb; border: 0.5pt solid #fde68a; color: #78350f;
+    padding: 8pt 10pt; border-radius: 3pt; font-size: 8.5pt; line-height: 1.4;
+    margin: 8pt 0 14pt; page-break-inside: avoid;
+  }
+  .disclaimer-label { font-weight: bold; text-transform: uppercase; letter-spacing: 0.4pt; font-size: 7.5pt; margin-right: 4pt; }
+
+  .posture { display: inline-block; padding: 2pt 8pt; border-radius: 8pt; font-size: 8.5pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5pt; margin-left: 6pt; }
+  .posture-low { background: #dcfce7; color: #166534; }
+  .posture-moderate { background: #fef9c3; color: #854d0e; }
+  .posture-elevated { background: #ffedd5; color: #9a3412; }
+  .posture-high { background: #fee2e2; color: #991b1b; }
+
+  .exec-summary { margin: 6pt 0 12pt; }
+  .exec-block { margin-bottom: 8pt; }
+  .exec-block ul { margin: 2pt 0 0 14pt; padding: 0; }
+  .exec-block li { margin-bottom: 2pt; }
+
+  .port-row { margin: 3pt 0; page-break-inside: avoid; }
+  .port-note { display: block; font-size: 8pt; color: #64748b; margin: 1pt 0 0 4pt; line-height: 1.35; }
+  .port-note.risk { color: #9a3412; }
+  .pill-expected { background: #f0fdf4; color: #166534; }
+
+  .rec-card { border: 1pt solid #e2e8f0; border-left: 3pt solid #94a3b8; border-radius: 4pt; padding: 8pt 10pt; margin-bottom: 8pt; page-break-inside: avoid; }
+  .rec-card.priority-medium { border-left-color: #facc15; }
+  .rec-card.priority-high { border-left-color: #fb923c; }
+  .rec-card.priority-critical { border-left-color: #ef4444; }
+  .rec-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 3pt; }
+  .rec-name { font-weight: bold; font-size: 10.5pt; }
+  .rec-code { font-size: 8pt; color: #64748b; letter-spacing: 0.4pt; margin-left: 4pt; }
+  .rec-tagline { font-size: 8.5pt; color: #475569; margin-bottom: 4pt; }
+  .rec-rationale { font-size: 9.5pt; margin-bottom: 4pt; }
+  .rec-trigger { font-size: 8pt; color: #64748b; margin-left: 10pt; }
 </style>
 </head>
 <body>
@@ -92,12 +126,42 @@
   </div>
 </div>
 
+{% if disclaimer %}
+<div class="disclaimer">
+  <span class="disclaimer-label">Important</span>{{ disclaimer }}
+</div>
+{% endif %}
+
 {% if narrative.headline %}
-<h2>Risk Overview</h2>
+<h2>Risk Overview{% if narrative.posture %}<span class="posture posture-{{ narrative.posture }}">{{ narrative.posture }} posture</span>{% endif %}</h2>
 <p style="font-size: 12pt; font-weight: 600;">{{ narrative.headline }}</p>
-{% if narrative.executive_brief %}
+
+{% with es=narrative.executive_summary %}
+{% if es.key_risks or es.business_impact or es.top_actions %}
+<div class="exec-summary">
+  {% if es.key_risks %}
+  <div class="exec-block">
+    <div class="label">Key risks</div>
+    <ul>{% for risk in es.key_risks %}<li>{{ risk }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+  {% if es.business_impact %}
+  <div class="exec-block">
+    <div class="label">What this means</div>
+    <p>{{ es.business_impact }}</p>
+  </div>
+  {% endif %}
+  {% if es.top_actions %}
+  <div class="exec-block">
+    <div class="label">Top actions</div>
+    <ul>{% for action in es.top_actions %}<li>{{ action }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+</div>
+{% elif narrative.executive_brief %}
 <p>{{ narrative.executive_brief }}</p>
 {% endif %}
+{% endwith %}
 {% endif %}
 
 <h2>Findings</h2>
@@ -166,7 +230,27 @@
   </p>
   {% endif %}
 
-  {% if surface.exposed_ports %}
+  {% if surface.port_context %}
+  <div class="label">Open ports</div>
+  {% for p in surface.port_context %}
+    <div class="port-row">
+      {% if p.risk_level == 'critical' or p.risk_level == 'high' %}
+        <span class="pill pill-risk pill-mono">{{ p.port }}{% if p.service %} ({{ p.service }}){% endif %}</span>
+      {% elif p.risk_level == 'medium' %}
+        <span class="pill pill-warn pill-mono">{{ p.port }}{% if p.service %} ({{ p.service }}){% endif %}</span>
+      {% elif p.risk_level == 'expected' %}
+        <span class="pill pill-expected pill-mono">{{ p.port }}{% if p.service %} ({{ p.service }}){% endif %}</span>
+      {% else %}
+        <span class="pill pill-mono">{{ p.port }}{% if p.service %} ({{ p.service }}){% endif %}</span>
+      {% endif %}
+      {% if p.risk_note %}
+        <span class="port-note risk">{{ p.risk_note }}</span>
+      {% elif p.blurb %}
+        <span class="port-note">{{ p.blurb }}{% if p.risk_level == 'expected' %} — no action required{% endif %}</span>
+      {% endif %}
+    </div>
+  {% endfor %}
+  {% elif surface.exposed_ports %}
   <div class="label">Open ports</div>
   <p>
     {% for port in surface.exposed_ports %}
@@ -229,6 +313,26 @@
 </div>
 {% endif %}
 {% endwith %}
+
+{% if narrative.recommendations %}
+<h2>Recommended Next Steps</h2>
+{% for rec in narrative.recommendations %}
+<div class="rec-card priority-{{ rec.priority|default:'medium' }}">
+  <div class="rec-head">
+    <span><span class="rec-name">{{ rec.name }}</span><span class="rec-code">{{ rec.code }}</span></span>
+    <span class="badge sev-{% if rec.priority == 'critical' %}critical{% elif rec.priority == 'high' %}high{% else %}medium{% endif %}">{{ rec.priority|default:'medium' }}</span>
+  </div>
+  <div class="rec-tagline">{{ rec.tagline }}</div>
+  {% if rec.rationale %}
+  <div class="rec-rationale">{{ rec.rationale }}</div>
+  {% endif %}
+  {% if rec.triggers %}
+  <div class="label">Why this fits</div>
+  {% for t in rec.triggers %}<div class="rec-trigger">• {{ t }}</div>{% endfor %}
+  {% endif %}
+</div>
+{% endfor %}
+{% endif %}
 
 {% if narrative.transition %}
 <div class="transition">{{ narrative.transition }}</div>

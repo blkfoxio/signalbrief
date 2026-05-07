@@ -3,6 +3,7 @@
 import logging
 from io import BytesIO
 
+from django.conf import settings
 from django.template.loader import render_to_string
 from django.utils import timezone
 
@@ -45,9 +46,12 @@ def render_report_pdf(analysis: Analysis) -> bytes:
         narrative_ctx = {
             "headline": narrative_obj.headline,
             "executive_brief": narrative_obj.executive_brief,
+            "executive_summary": getattr(narrative_obj, "executive_summary", {}) or {},
             "findings": narrative_obj.findings or {},
+            "recommendations": getattr(narrative_obj, "recommendations", []) or [],
             "correlated_data": narrative_obj.correlated_data or {},
             "transition": narrative_obj.transition,
+            "posture": (narrative_obj.correlated_data or {}).get("posture", ""),
         }
 
     dehashed_ctx = None
@@ -86,6 +90,7 @@ def render_report_pdf(analysis: Analysis) -> bytes:
             "dehashed": dehashed_ctx,
             "osint_raw": osint_raw,
             "generated_at": timezone.now(),
+            "disclaimer": getattr(settings, "REPORT_DISCLAIMER", ""),
         },
     )
 

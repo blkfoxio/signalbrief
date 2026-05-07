@@ -1,5 +1,6 @@
 """Intelligence serializers for reports API."""
 
+from django.conf import settings
 from rest_framework import serializers
 
 from companies.serializers import CompanyEnrichmentSerializer
@@ -47,7 +48,9 @@ class NarrativeOutputSerializer(serializers.Serializer):
 
     headline = serializers.CharField()
     executive_brief = serializers.CharField(allow_blank=True, default="")
+    executive_summary = serializers.DictField(default=dict)
     findings = serializers.DictField(default=dict)
+    recommendations = serializers.ListField(default=list)
     correlated_data = serializers.DictField(default=dict)
     transition = serializers.CharField(allow_blank=True, default="")
 
@@ -59,11 +62,18 @@ class ReportOutputSerializer(serializers.ModelSerializer):
     signals = SecuritySignalSerializer(many=True, read_only=True)
     narrative = serializers.SerializerMethodField()
     osint_sources = serializers.SerializerMethodField()
+    disclaimer = serializers.SerializerMethodField()
 
     class Meta:
         model = Analysis
-        fields = ["id", "status", "company", "signals", "narrative", "osint_sources", "error_message", "created_at"]
+        fields = [
+            "id", "status", "company", "signals", "narrative", "osint_sources",
+            "disclaimer", "error_message", "created_at",
+        ]
         read_only_fields = fields
+
+    def get_disclaimer(self, obj):
+        return getattr(settings, "REPORT_DISCLAIMER", "")
 
     def get_company(self, obj):
         company = obj.company
@@ -90,7 +100,9 @@ class ReportOutputSerializer(serializers.ModelSerializer):
             return {
                 "headline": narrative.headline,
                 "executive_brief": narrative.executive_brief,
+                "executive_summary": getattr(narrative, "executive_summary", {}) or {},
                 "findings": narrative.findings,
+                "recommendations": getattr(narrative, "recommendations", []) or [],
                 "correlated_data": narrative.correlated_data,
                 "transition": narrative.transition,
             }

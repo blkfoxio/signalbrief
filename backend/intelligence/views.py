@@ -17,6 +17,7 @@ from companies.services.enrichment_service import enrich_company
 from companies.services.input_resolver import resolve_inputs
 from narratives.models import Narrative
 from narratives.services.openai_generator import generate_narrative
+from narratives.services.recommendations import select_recommendations
 
 from .models import Analysis, DehashedResult, OsintResult, SecuritySignal
 from .serializers import AuditDataSerializer, ReportInputSerializer, ReportOutputSerializer
@@ -336,6 +337,9 @@ def _run_pipeline(request, company):
         # Correlate findings across sources
         correlated = correlate_findings(signal_dicts, osint_results)
 
+        # Pick service-bucket recommendations from correlated findings (deterministic).
+        recommendations = select_recommendations(correlated)
+
         # Generate narrative from correlated findings
         company_context = {
             "company_name": company.name,
@@ -354,7 +358,7 @@ def _run_pipeline(request, company):
         asyncio.set_event_loop(loop)
         try:
             narrative_data = loop.run_until_complete(
-                generate_narrative(company_context, correlated)
+                generate_narrative(company_context, correlated, recommendations)
             )
         finally:
             loop.close()
@@ -363,7 +367,9 @@ def _run_pipeline(request, company):
             analysis=analysis,
             headline=narrative_data.get("headline", ""),
             executive_brief=narrative_data.get("executive_brief", ""),
+            executive_summary=narrative_data.get("executive_summary", {}) or {},
             findings=narrative_data.get("findings", {}),
+            recommendations=narrative_data.get("recommendations", []) or [],
             correlated_data=correlated,
             transition=narrative_data.get("transition", ""),
             model_used=narrative_data.get("model_used", ""),
