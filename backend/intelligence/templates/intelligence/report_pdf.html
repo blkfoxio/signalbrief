@@ -391,31 +391,6 @@
     {% else %}<p class="muted small">No exposed services detected.</p>{% endif %}
     {% endwith %}
 
-  {% elif src == 'hibp' %}
-    {% if info.data.breaches %}
-    <table class="table">
-      <thead><tr><th>Breach</th><th>Date</th><th>Records</th><th>Data classes</th></tr></thead>
-      <tbody>
-      {% for b in info.data.breaches %}
-        <tr>
-          <td>{{ b.Title|default:b.Name }}</td>
-          <td class="mono">{{ b.BreachDate|default:'—' }}</td>
-          <td>{% if b.PwnCount %}{{ b.PwnCount|intcomma }}{% else %}—{% endif %}</td>
-          <td class="small muted">{{ b.DataClasses|join:", " }}</td>
-        </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-    {% else %}<p class="muted small">No known breaches.</p>{% endif %}
-
-  {% elif src == 'securitytrails' %}
-    {% with subs=info.data.subdomains %}
-    {% if subs %}
-      <div class="label">Subdomains ({{ subs|length }})</div>
-      <p>{% for s in subs %}<span class="pill pill-mono">{{ s }}</span>{% endfor %}</p>
-    {% else %}<p class="muted small">No subdomains found.</p>{% endif %}
-    {% endwith %}
-
   {% elif src == 'builtwith' %}
     {% with groups=info.data.groups %}
     {% if groups %}

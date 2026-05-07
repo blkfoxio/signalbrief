@@ -1,4 +1,15 @@
-"""Have I Been Pwned (HIBP) API async client."""
+"""Have I Been Pwned (HIBP) API async client.
+
+NOT currently called from the analysis pipeline. Domain search on HIBP requires
+HIBP Pro plus ownership verification of the queried domain (DNS TXT record,
+verification email, file upload, or meta tag). Pre-sales reports cannot meet
+that prerequisite, so this client stays dormant until a verification flow is
+added (see https://haveibeenpwned.com/API/v3#DomainSearchOverview and the
+domain-verification API at /api/v3/domainverification/dns).
+
+Endpoint reference for future re-enablement: GET /api/v3/breacheddomain/{domain}
+returns breaches scoped to a verified domain.
+"""
 
 import logging
 
@@ -7,15 +18,16 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-HIBP_BREACHES_URL = "https://haveibeenpwned.com/api/v3/breaches"
-HIBP_DOMAIN_SEARCH_URL = "https://haveibeenpwned.com/api/v3/breaches"
+HIBP_DOMAIN_SEARCH_URL = "https://haveibeenpwned.com/api/v3/breacheddomain"
 
 
 async def search_by_domain(domain: str) -> dict:
     """
-    Search HIBP for breaches associated with a domain.
-    Uses the breaches endpoint filtered by domain.
-    Returns dict with breaches list and metadata.
+    Search HIBP for breaches scoped to a verified domain.
+
+    Requires HIBP Pro and prior domain ownership verification. Without
+    verification HIBP returns 401/403; this client is intentionally not wired
+    into the pipeline until verification is supported.
     """
     if not settings.HIBP_API:
         logger.warning("HIBP_API key not configured, skipping")
@@ -26,14 +38,11 @@ async def search_by_domain(domain: str) -> dict:
         "user-agent": "SignalBrief",
     }
 
-    params = {"domain": domain}
-
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(
-                HIBP_BREACHES_URL,
+                f"{HIBP_DOMAIN_SEARCH_URL}/{domain}",
                 headers=headers,
-                params=params,
             )
 
             if response.status_code == 404:
@@ -43,9 +52,9 @@ async def search_by_domain(domain: str) -> dict:
                 logger.warning("HIBP rate limit hit")
                 return {"breaches": [], "error": "Rate limit exceeded"}
 
-            if response.status_code == 401:
-                logger.warning("HIBP unauthorized - check API key")
-                return {"breaches": [], "error": "Unauthorized"}
+            if response.status_code in (401, 403):
+                logger.warning("HIBP unauthorized (domain not verified or API key invalid)")
+                return {"breaches": [], "error": "Unauthorized (domain verification required)"}
 
             response.raise_for_status()
             breaches = response.json()

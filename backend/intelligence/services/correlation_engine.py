@@ -263,7 +263,7 @@ def _build_credential_exposure(signals: list[dict], osint_results: dict) -> dict
 # ---------------------------------------------------------------------------
 
 def _build_attack_surface(signals: list[dict], osint_results: dict) -> dict:
-    """Merge Shodan + Censys + SecurityTrails + BuiltWith into attack surface view."""
+    """Merge Shodan + Censys + BuiltWith into attack surface view."""
 
     # Exposed services (Shodan + Censys)
     shodan_svc = _find_signal(signals, "exposed_services", source="shodan")
@@ -297,14 +297,12 @@ def _build_attack_surface(signals: list[dict], osint_results: dict) -> dict:
     vuln_signal = _find_signal(signals, "known_vulnerabilities")
     cves = vuln_signal.get("value", {}).get("cves", []) if vuln_signal else []
 
-    # Subdomains
-    subdomain_signal = _find_signal(signals, "subdomain_count")
-    subdomain_count = subdomain_signal.get("value", {}).get("count", 0) if subdomain_signal else 0
-    subdomain_sample = subdomain_signal.get("value", {}).get("sample", []) if subdomain_signal else []
-
-    # DNS issues
-    dns_signal = _find_signal(signals, "dns_misconfigurations")
-    dns_issues = dns_signal.get("value", {}).get("issues", []) if dns_signal else []
+    # Subdomains and DNS posture: no source currently feeds these; kept as
+    # empty fields so downstream consumers (frontend, PDF, narrative prompt)
+    # don't break. Re-introduce when a subdomain/DNS source is added.
+    subdomain_count = 0
+    subdomain_sample: list = []
+    dns_issues: list = []
 
     # Tech footprint & missing defenses
     tech_signal = _find_signal(signals, "technology_footprint")
@@ -318,19 +316,15 @@ def _build_attack_surface(signals: list[dict], osint_results: dict) -> dict:
     missing_defenses = []
     if security_signal and not has_security_tools:
         missing_defenses.append("No WAF or CDN security detected")
-    if "Missing SPF record" in dns_issues:
-        missing_defenses.append("No SPF record (email spoofing risk)")
-    if "Missing DMARC record" in dns_issues:
-        missing_defenses.append("No DMARC record (email spoofing risk)")
 
     # Severity
     if high_risk_found or cves:
         severity = "critical"
     elif len(all_ports) > 10 or missing_defenses:
         severity = "high"
-    elif len(all_ports) > 3 or subdomain_count > 50:
+    elif len(all_ports) > 3:
         severity = "medium"
-    elif len(all_ports) > 0 or subdomain_count > 0:
+    elif len(all_ports) > 0:
         severity = "low"
     else:
         severity = "low"
@@ -347,12 +341,6 @@ def _build_attack_surface(signals: list[dict], osint_results: dict) -> dict:
     if cves:
         evidence.append(f"{len(cves)} known CVEs: {', '.join(cves[:3])}")
         sources.add("shodan")
-    if subdomain_count > 0:
-        evidence.append(f"SecurityTrails: {subdomain_count} subdomains")
-        sources.add("securitytrails")
-    if dns_issues:
-        evidence.append(f"DNS issues: {', '.join(dns_issues)}")
-        sources.add("securitytrails")
     if tech_count > 0:
         evidence.append(f"BuiltWith: {tech_count} technologies in stack")
         sources.add("builtwith")
@@ -449,23 +437,9 @@ def _build_remediation_priorities(cred: dict, surface: dict, signals: list[dict]
             "sources": ["shodan"],
         })
 
-    # DNS/email security remediation
-    for issue in surface.get("dns_issues", []):
-        priority += 1
-        items.append({
-            "priority": priority,
-            "title": f"Implement {issue.replace('Missing ', '')}",
-            "category": "email_security",
-            "severity": "high",
-            "evidence": [issue],
-            "sources": ["securitytrails"],
-        })
-
     # Missing defenses remediation
     if surface.get("missing_defenses"):
         for defense in surface["missing_defenses"]:
-            if "SPF" in defense or "DMARC" in defense:
-                continue  # Already covered by dns_issues
             priority += 1
             items.append({
                 "priority": priority,

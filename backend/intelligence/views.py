@@ -25,10 +25,8 @@ from .services.dehashed_client import search_by_domain, search_by_email
 from .services.correlation_engine import correlate_findings
 from .services.signal_extractor import extract_all_signals, extract_signals
 
-from .services.hibp_client import search_by_domain as hibp_search
 from .services.shodan_client import search_by_domain as shodan_search
 from .services.leakcheck_client import search_by_domain as leakcheck_search
-from .services.securitytrails_client import search_by_domain as securitytrails_search
 from .services.censys_client import search_by_domain as censys_search
 from .services.builtwith_client import search_by_domain as builtwith_search
 
@@ -295,7 +293,7 @@ def _run_pipeline(request, company):
         )
 
         # Store OSINT results from other sources
-        osint_sources = ["hibp", "shodan", "leakcheck", "securitytrails", "censys", "builtwith"]
+        osint_sources = ["shodan", "leakcheck", "censys", "builtwith"]
         osint_results = {}
         for source_name in osint_sources:
             source_data = fetched.get(source_name)
@@ -402,15 +400,14 @@ async def _parallel_fetch(domain: str, linkedin_url: str, contact_email: str) ->
         "enrichment": enrich_company(domain, linkedin_url),
     }
 
-    # Only include OSINT sources that have API keys configured
-    if settings.HIBP_API:
-        tasks["hibp"] = hibp_search(domain)
+    # Only include OSINT sources that have API keys configured.
+    # HIBP is intentionally not called: domain search requires HIBP Pro + ownership
+    # verification, which doesn't fit pre-sales reports. Re-enable once a DNS-
+    # verification flow is built (see HIBP /api/v3/domainverification/dns).
     if settings.SHODAN_API:
         tasks["shodan"] = shodan_search(domain)
     if settings.LEAKCHECK_API:
         tasks["leakcheck"] = leakcheck_search(domain)
-    if settings.SECURITYTRAILS_API:
-        tasks["securitytrails"] = securitytrails_search(domain)
     if settings.CENSYS_API_TOKEN:
         tasks["censys"] = censys_search(domain)
     if settings.BUILTWITH_API:

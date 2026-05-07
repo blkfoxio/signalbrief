@@ -18,9 +18,7 @@ const SOURCE_META: Record<string, { label: string; icon: typeof Database }> = {
   shodan: { label: 'Shodan', icon: Server },
   builtwith: { label: 'BuiltWith', icon: Layers },
   censys: { label: 'Censys', icon: Shield },
-  hibp: { label: 'HIBP', icon: Database },
   leakcheck: { label: 'LeakCheck', icon: Database },
-  securitytrails: { label: 'SecurityTrails', icon: Server },
 }
 
 export function AuditPanel({ reportId, auditData, osintSources, onLoadAuditData }: AuditPanelProps) {
@@ -209,8 +207,6 @@ function OsintDataView({ source, data }: { source: string; data: OsintRawData })
   if (source === 'shodan') return <ShodanView data={raw} queriedAt={data.queried_at} />
   if (source === 'builtwith') return <BuiltWithView data={raw} queriedAt={data.queried_at} />
   if (source === 'censys') return <CensysView data={raw} queriedAt={data.queried_at} />
-  if (source === 'hibp') return <HibpView data={raw} queriedAt={data.queried_at} />
-  if (source === 'securitytrails') return <SecurityTrailsView data={raw} queriedAt={data.queried_at} />
   if (source === 'leakcheck') return <GenericJsonView data={raw} queriedAt={data.queried_at} />
 
   return <GenericJsonView data={raw} queriedAt={data.queried_at} />
@@ -339,78 +335,11 @@ function CensysView({ data, queriedAt }: { data: Record<string, unknown>; querie
 }
 
 
-function HibpView({ data, queriedAt }: { data: Record<string, unknown>; queriedAt: string }) {
-  const breaches = (data.breaches as Array<Record<string, unknown>>) || []
-
-  return (
-    <>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <StatBox label="Known Breaches" value={breaches.length} />
-        <StatBox label="Queried At" value={new Date(queriedAt).toLocaleString()} small />
-      </div>
-      {breaches.length > 0 && (
-        <div className="relative">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Breach</th>
-                  <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Date</th>
-                  <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Records</th>
-                  <th className="text-left py-2 px-3 text-xs font-semibold text-slate-500 uppercase">Data Types</th>
-                </tr>
-              </thead>
-              <tbody>
-                {breaches.map((b, i) => (
-                  <tr key={i} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="py-2 px-3 text-slate-700 text-xs font-medium">{b.Name as string || '-'}</td>
-                    <td className="py-2 px-3 text-slate-700 text-xs">{b.BreachDate as string || '-'}</td>
-                    <td className="py-2 px-3 text-slate-700 text-xs">{(b.PwnCount as number)?.toLocaleString() || '-'}</td>
-                    <td className="py-2 px-3 text-xs text-slate-500">{((b.DataClasses as string[]) || []).join(', ')}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-white to-transparent pointer-events-none sm:hidden" />
-        </div>
-      )}
-    </>
-  )
-}
-
-
-function SecurityTrailsView({ data, queriedAt }: { data: Record<string, unknown>; queriedAt: string }) {
-  const subdomains = (data.subdomains as string[]) || []
-
-  return (
-    <>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <StatBox label="Subdomains" value={subdomains.length} />
-        <StatBox label="Queried At" value={new Date(queriedAt).toLocaleString()} small />
-      </div>
-      {subdomains.length > 0 && (
-        <div>
-          <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2">Subdomains</h4>
-          <div className="flex flex-wrap gap-1.5 max-h-60 overflow-y-auto">
-            {subdomains.map(sub => (
-              <span key={sub} className="px-2 py-0.5 text-xs font-mono bg-slate-100 text-slate-700 rounded">{sub}</span>
-            ))}
-          </div>
-        </div>
-      )}
-    </>
-  )
-}
-
-
 const CLEAN_MESSAGES: Record<string, string> = {
-  hibp: 'No known breaches found for this domain in the Have I Been Pwned database.',
   shodan: 'No exposed services or hosts detected for this domain.',
   censys: 'No hosts or certificates found for this domain.',
   builtwith: 'No technology data available for this domain.',
   leakcheck: 'No stealer log entries found for this domain.',
-  securitytrails: 'No subdomain or DNS data found for this domain.',
 }
 
 function CleanBillView({ source, queriedAt }: { source: string; queriedAt: string }) {

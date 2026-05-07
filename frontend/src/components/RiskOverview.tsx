@@ -5,11 +5,9 @@ import type { NarrativeOutput, OsintSource, Posture } from '@/types'
 
 const SOURCE_DISPLAY: Record<string, string> = {
   dehashed: 'DeHashed',
-  hibp: 'HIBP',
   leakcheck: 'LeakCheck',
   shodan: 'Shodan',
   censys: 'Censys',
-  securitytrails: 'SecurityTrails',
   builtwith: 'BuiltWith',
 }
 

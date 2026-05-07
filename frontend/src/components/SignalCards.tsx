@@ -1,8 +1,7 @@
 import {
   AlertTriangle, Mail, Shield, RefreshCw,
-  Bug, Database, Clock, AlertOctagon,
+  Bug, AlertOctagon,
   Server, ShieldAlert, Package, FileWarning, Lock,
-  Network, Wifi,
   Layers, ShieldCheck, Archive
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -16,26 +15,19 @@ const SEVERITY_COLORS = {
 }
 
 const SIGNAL_ICONS: Record<string, typeof Mail> = {
-  // Breach Intelligence (DeHashed, HIBP, LeakCheck)
+  // Breach Intelligence (DeHashed, LeakCheck)
   employee_emails_exposed: Mail,
   breach_events: AlertTriangle,
   password_exposure: Shield,
   repeated_identity_exposure: RefreshCw,
   stealer_log_exposure: Bug,
   credential_market_presence: AlertOctagon,
-  known_breaches: Database,
-  breach_recency: Clock,
-  sensitive_breach_exposure: AlertOctagon,
   // Infrastructure (Shodan, Censys)
   exposed_services: Server,
   known_vulnerabilities: ShieldAlert,
   outdated_software: Package,
   expired_certificates: FileWarning,
   weak_encryption: Lock,
-  // Attack Surface (SecurityTrails)
-  subdomain_count: Network,
-  dns_misconfigurations: Wifi,
-  historical_dns_changes: RefreshCw,
   // Tech Footprint (BuiltWith)
   technology_footprint: Layers,
   security_tools_detected: ShieldCheck,
@@ -44,11 +36,9 @@ const SIGNAL_ICONS: Record<string, typeof Mail> = {
 
 const SOURCE_LABELS: Record<string, string> = {
   dehashed: 'DeHashed',
-  hibp: 'HIBP',
   leakcheck: 'LeakCheck',
   shodan: 'Shodan',
   censys: 'Censys',
-  securitytrails: 'SecurityTrails',
   builtwith: 'BuiltWith',
 }
 
