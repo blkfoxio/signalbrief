@@ -101,6 +101,19 @@ def overview(request):
     )
 
 
+# Sources kept in the model for future re-enablement but not currently called
+# by the pipeline. Surfaced in the admin table with a "Decommissioned" badge
+# and tooltip so it's clear they're inactive on purpose, not silently failing.
+DECOMMISSIONED_SOURCES = {
+    "hibp": (
+        "HIBP domain search requires HIBP Pro and proof of domain ownership "
+        "(DNS TXT, email, file, or meta tag). Pre-sales reports cannot meet "
+        "that prerequisite, so HIBP is intentionally not called. Re-enable "
+        "once a domain-verification flow is built."
+    ),
+}
+
+
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
 def sources(request):
@@ -116,6 +129,7 @@ def sources(request):
         last_error = (
             source_qs.exclude(error_message="").order_by("-queried_at").values("queried_at", "error_message").first()
         )
+        decommissioned_note = DECOMMISSIONED_SOURCES.get(value)
         rows.append(
             {
                 "source": value,
@@ -125,6 +139,8 @@ def sources(request):
                 "success_rate": ((total - errors) / total) if total else None,
                 "last_error_at": last_error["queried_at"].isoformat() if last_error else None,
                 "last_error_message": last_error["error_message"] if last_error else None,
+                "decommissioned": decommissioned_note is not None,
+                "decommissioned_note": decommissioned_note,
             }
         )
 

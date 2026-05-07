@@ -61,7 +61,6 @@ class OsintResult(TimestampedModel):
 
     class Source(models.TextChoices):
         LEAKCHECK = "leakcheck"
-        SECURITYTRAILS = "securitytrails"
         SHODAN = "shodan"
         CENSYS = "censys"
         BUILTWITH = "builtwith"

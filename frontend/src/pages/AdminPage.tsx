@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, Users, FileText, Activity, Clock } from 'lucide-react'
+import { AlertTriangle, Users, FileText, Activity, Clock, Info } from 'lucide-react'
 import {
   getMetricsOverview,
   getMetricsRecentFailures,
@@ -181,33 +181,54 @@ export function AdminPage() {
           </thead>
           <tbody>
             {sources.sources.map((row) => (
-              <tr key={row.source} className="border-t border-slate-100">
-                <td className="px-4 py-2 font-medium text-slate-700">{row.label}</td>
-                <td className="px-4 py-2 text-right text-slate-600">{row.total_calls_30d}</td>
-                <td className="px-4 py-2 text-right text-slate-600">{row.error_count_30d}</td>
-                <td className="px-4 py-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full ${rateColor(row.success_rate)}`}
-                        style={{ width: row.success_rate == null ? '0%' : `${row.success_rate * 100}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-slate-600 tabular-nums">{formatPct(row.success_rate)}</span>
+              <tr key={row.source} className={`border-t border-slate-100 ${row.decommissioned ? 'bg-slate-50/60' : ''}`}>
+                <td className="px-4 py-2 font-medium text-slate-700">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={row.decommissioned ? 'text-slate-500' : ''}>{row.label}</span>
+                    {row.decommissioned && (
+                      <span
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide rounded bg-slate-200 text-slate-600"
+                        title={row.decommissioned_note || 'Source is intentionally not called by the pipeline.'}
+                      >
+                        Decommissioned
+                        <Info className="w-3 h-3" />
+                      </span>
+                    )}
                   </div>
                 </td>
-                <td className="px-4 py-2 text-xs text-slate-500 max-w-xs truncate" title={row.last_error_message || ''}>
-                  {row.last_error_message ? (
-                    <span>
-                      {row.last_error_at && (
-                        <span className="text-slate-400 mr-1">{new Date(row.last_error_at).toLocaleDateString()}:</span>
+                {row.decommissioned ? (
+                  <td className="px-4 py-2 text-xs text-slate-400" colSpan={4}>
+                    Inactive in pipeline. Hover the badge for context.
+                  </td>
+                ) : (
+                  <>
+                    <td className="px-4 py-2 text-right text-slate-600">{row.total_calls_30d}</td>
+                    <td className="px-4 py-2 text-right text-slate-600">{row.error_count_30d}</td>
+                    <td className="px-4 py-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full ${rateColor(row.success_rate)}`}
+                            style={{ width: row.success_rate == null ? '0%' : `${row.success_rate * 100}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-slate-600 tabular-nums">{formatPct(row.success_rate)}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2 text-xs text-slate-500 max-w-xs truncate" title={row.last_error_message || ''}>
+                      {row.last_error_message ? (
+                        <span>
+                          {row.last_error_at && (
+                            <span className="text-slate-400 mr-1">{new Date(row.last_error_at).toLocaleDateString()}:</span>
+                          )}
+                          {row.last_error_message}
+                        </span>
+                      ) : (
+                        <span className="text-slate-300">—</span>
                       )}
-                      {row.last_error_message}
-                    </span>
-                  ) : (
-                    <span className="text-slate-300">—</span>
-                  )}
-                </td>
+                    </td>
+                  </>
+                )}
               </tr>
             ))}
           </tbody>

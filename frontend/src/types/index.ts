@@ -36,6 +36,8 @@ export interface MetricsSourceRow {
   success_rate: number | null
   last_error_at: string | null
   last_error_message: string | null
+  decommissioned?: boolean
+  decommissioned_note?: string | null
 }
 
 export interface MetricsSources {

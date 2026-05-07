@@ -14,7 +14,6 @@ def extract_all_signals(dehashed_entries: list[dict], osint_results: dict) -> li
     signals += extract_leakcheck_signals(osint_results.get("leakcheck", {}))
     signals += extract_shodan_signals(osint_results.get("shodan", {}))
     signals += extract_censys_signals(osint_results.get("censys", {}))
-    signals += extract_securitytrails_signals(osint_results.get("securitytrails", {}))
     signals += extract_builtwith_signals(osint_results.get("builtwith", {}))
     return signals
 
@@ -342,60 +341,6 @@ def extract_censys_signals(data: dict) -> list[dict]:
                 "title": f"{total_hosts} host{'s' if total_hosts != 1 else ''} with exposed services",
                 "description": f"Censys found {total_hosts} host{'s' if total_hosts != 1 else ''} associated with this domain exposing services: {', '.join(sorted(services_seen)[:5])}.",
             })
-
-    return signals
-
-
-# ---------------------------------------------------------------------------
-# SecurityTrails signals
-# ---------------------------------------------------------------------------
-
-def extract_securitytrails_signals(data: dict) -> list[dict]:
-    """Extract signals from SecurityTrails DNS/subdomain data."""
-    if not data or data.get("error"):
-        return []
-
-    signals = []
-    subdomains = data.get("subdomains", [])
-    dns = data.get("dns", {})
-    total_subs = len(subdomains)
-
-    # Signal: Subdomain count (attack surface width)
-    if total_subs > 0:
-        severity = "high" if total_subs >= 100 else "medium" if total_subs >= 20 else "low"
-        signals.append({
-            "source": "securitytrails",
-            "signal_type": "subdomain_count",
-            "value": {"count": total_subs, "sample": subdomains[:20]},
-            "severity": severity,
-            "title": f"{total_subs} subdomain{'s' if total_subs != 1 else ''} discovered",
-            "description": f"SecurityTrails found {total_subs} subdomain{'s' if total_subs != 1 else ''} for this domain. A larger subdomain footprint increases attack surface area.",
-        })
-
-    # Signal: DNS misconfigurations
-    issues = []
-    txt_records = dns.get("txt", {}).get("values", [])
-    mx_records = dns.get("mx", {}).get("values", [])
-
-    # Check for SPF
-    has_spf = any("v=spf1" in str(r.get("value", "")).lower() for r in txt_records) if txt_records else False
-    # Check for DMARC (would be on _dmarc subdomain, but flag if missing from TXT)
-    has_dmarc = any("v=dmarc1" in str(r.get("value", "")).lower() for r in txt_records) if txt_records else False
-
-    if mx_records and not has_spf:
-        issues.append("Missing SPF record")
-    if mx_records and not has_dmarc:
-        issues.append("Missing DMARC record")
-
-    if issues:
-        signals.append({
-            "source": "securitytrails",
-            "signal_type": "dns_misconfigurations",
-            "value": {"issues": issues},
-            "severity": "high" if len(issues) >= 2 else "medium",
-            "title": f"{len(issues)} DNS configuration issue{'s' if len(issues) != 1 else ''}",
-            "description": f"DNS analysis found: {', '.join(issues)}. These gaps can enable email spoofing and phishing attacks.",
-        })
 
     return signals
 

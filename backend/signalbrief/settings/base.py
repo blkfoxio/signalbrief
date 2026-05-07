@@ -148,10 +148,11 @@ PROXYCURL_API = config("PROXYCURL_API", default="")
 
 # OSINT data sources
 LEAKCHECK_API = config("LEAKCHECK_API", default="")
-SECURITYTRAILS_API = config("SECURITYTRAILS_API", default="")
 SHODAN_API = config("SHODAN_API", default="")
 CENSYS_API_TOKEN = config("CENSYS_API_TOKEN", default="")
 BUILTWITH_API = config("BUILTWITH_API", default="")
+# Reserved for future use. Not called by the pipeline today; HIBP domain search
+# requires HIBP Pro plus ownership verification, which doesn't fit pre-sales.
 HIBP_API = config("HIBP_API", default="")
 
 # Report disclaimer — shown on the PDF cover and in the running footer. Tunable
